@@ -3,43 +3,45 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Web UTAU JS — Foundation</title>
+  <title>Web UTAU JS — Full (Single HTML)</title>
   <style>
     :root {
       --bg: #0f1115; --panel: #171a21; --muted:#9aa5b1; --fg:#e6edf3; --accent:#5b9cff; --accent2:#7ee787; --danger:#ff6b6b;
-      --grid1:#1f232b; --grid2:#151821; --beat:#2a2f3a; --bar:#3a4150; --note:#7aa2ff; --note-sel:#ffd166;
+      --grid1:#1f232b; --grid2:#151821; --beat:#2a2f3a; --bar:#3a4150; --note:#7aa2ff; --note-sel:#ffd166; --note-border:#5a86e6;
     }
     * { box-sizing: border-box; }
-    html, body { height: 100%; background: var(--bg); color: var(--fg); margin: 0; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif; }
+    html, body { height: 100%; background: var(--bg); color: var(--fg); margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif; }
+    a { color: var(--accent); }
     #app { display: grid; grid-template-rows: 48px 1fr 28px; height: 100%; }
     .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid #202431; position: sticky; top: 0; z-index: 2; }
-    .toolbar .title { font-weight: 700; margin-right: 12px; }
+    .toolbar .title { font-weight: 800; margin-right: 12px; letter-spacing:.2px; }
     .btn { background: #253044; color: var(--fg); border: 1px solid #2d374f; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
     .btn:hover { background: #2b3952; }
-    .btn.primary { background: var(--accent); border-color: transparent; color: #0a0e14; font-weight: 700; }
-    .btn.danger { background: var(--danger); border-color: transparent; color: #0a0e14; font-weight: 700; }
+    .btn.primary { background: var(--accent); border-color: transparent; color: #0a0e14; font-weight: 800; }
+    .btn.danger { background: var(--danger); border-color: transparent; color: #0a0e14; font-weight: 800; }
     .sep { width: 1px; height: 24px; background:#2a3142; margin: 0 4px; }
 
-    .main { display: grid; grid-template-columns: 72px 1fr; overflow: hidden; }
+    .main { display: grid; grid-template-columns: 72px 1fr; overflow: hidden; min-height: 0; }
     .keys { background: var(--panel); border-right: 1px solid #202431; position: relative; }
     .roll-wrap { position: relative; overflow: auto; background: var(--grid2); }
     canvas { display: block; }
 
     .statusbar { background: var(--panel); border-top: 1px solid #202431; display:flex; align-items:center; gap:16px; padding: 4px 8px; color: var(--muted); }
-
-    /* key styles */
     .key { position: absolute; left: 0; right: 0; height: 16px; border-bottom: 1px solid #202431; display:flex; align-items:center; justify-content:center; font-size: 10px; color: var(--muted); }
 
-    /* piano roll metrics */
+    .inline-editor { position: absolute; z-index: 5; font: inherit; padding: 2px 4px; border-radius: 4px; border: 1px solid #415070; background: #0e1420; color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
   </style>
 </head>
 <body>
 <div id="app">
   <div class="toolbar">
-    <div class="title">Web UTAU JS — 土台</div>
+    <div class="title">Web UTAU JS</div>
     <button class="btn" id="btnNew">新規</button>
     <button class="btn" id="btnOpen">開く</button>
     <button class="btn" id="btnSave">保存</button>
+    <div class="sep"></div>
+    <button class="btn" id="btnLoadVB">Voicebankを読み込む</button>
+    <span id="vbName" style="color:var(--muted)">未ロード</span>
     <div class="sep"></div>
     <label style="display:flex;align-items:center;gap:6px;color:var(--muted)">
       BPM <input id="bpm" type="number" min="30" max="300" value="120" style="width:72px;background:#0f141c;color:#e6edf3;border:1px solid #2d374f;border-radius:6px;padding:4px 6px">
@@ -53,13 +55,13 @@
     <button class="btn" id="btnStop">停止</button>
     <button class="btn primary" id="btnExport">WAV書き出し</button>
     <div class="sep"></div>
-    <span id="hint" style="color:var(--muted)">ドラッグでノート作成 / クリックで選択 / Alt+ドラッグで移動 / 端をドラッグで長さ変更</span>
-    <input type="file" id="fileOpen" accept="application/json" style="display:none" />
+    <span id="hint" style="color:var(--muted)">ドラッグ=ノート作成 / Alt+ドラッグ=移動 / 端ドラッグ=長さ / ダブルクリック=歌詞</span>
+    <input type="file" id="fileOpen" accept="application/json,.ust,.ustx" style="display:none" />
   </div>
 
   <div class="main">
     <div class="keys" id="keys"></div>
-    <div class="roll-wrap" id="rollWrap"><canvas id="roll" width="2400" height="1024"></canvas></div>
+    <div class="roll-wrap" id="rollWrap"><canvas id="roll" width="2600" height="1280"></canvas></div>
   </div>
 
   <div class="statusbar">
@@ -67,32 +69,31 @@
     <div>選択: <span id="sel">なし</span></div>
     <div>長さ: <span id="len">0</span> tick</div>
     <div>位置: <span id="pos">0</span> tick</div>
+    <div>|  Voicebank: <span id="vbInfo">—</span></div>
   </div>
 </div>
 
 <script>
-// ======= 基本データモデル =======
-const PPQ = 480; // pulses per quarter note
+// =============================
+// 基本データモデル
+// =============================
+const PPQ = 480; // pulses per quarter
 const state = {
   bpm: 120,
   timeSig: { num: 4, den: 4 },
   notes: /** @type {Note[]} */ ([]),
   selection: null, // note id
   nextId: 1,
+  voicebank: /** @type {Voicebank|null} */ (null),
 };
-
 /** @typedef {{id:number, tickOn:number, tickDur:number, pitch:number, lyric:string}} Note */
+/** @typedef {{wav:string, alias:string, offset:number, consonant:number, cutoff:number, preutter:number, overlap:number, dir:FileSystemDirectoryHandle}} OtoEntry */
+/** @typedef {{name:string, entries: Map<string,OtoEntry>, wavCache: Map<string, AudioBuffer>, dir: FileSystemDirectoryHandle}} Voicebank */
 
-// ======= UI サイズ・スケール =======
-const metrics = {
-  keyHeight: 16,         // px per semitone
-  pxPerTick: 0.1,        // horizontal zoom
-  lowestKey: 36,         // C2
-  highestKey: 96,        // C7 (exclusive)
-  leftGutter: 72,        // width of keys panel
-};
-
-// DOM 参照
+// =============================
+// UI スケール & DOM
+// =============================
+const metrics = { keyHeight: 16, pxPerTick: 0.12, lowestKey: 36, highestKey: 96 };
 const elKeys = document.getElementById('keys');
 const elCanvas = document.getElementById('roll');
 const ctx = elCanvas.getContext('2d');
@@ -105,231 +106,218 @@ const elSel = document.getElementById('sel');
 const elLen = document.getElementById('len');
 const elPos = document.getElementById('pos');
 const elFileOpen = document.getElementById('fileOpen');
+const elVbName = document.getElementById('vbName');
+const elVbInfo = document.getElementById('vbInfo');
 
-// ======= ピアノ鍵盤の描画（左パネル、DOMで） =======
-function renderKeys() {
+// =============================
+// 鍵盤（左）
+// =============================
+function midiToName(n){ const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; const o = Math.floor(n/12)-1; return names[n%12]+o; }
+function pitchToY(p){ return (metrics.highestKey - p - 1) * metrics.keyHeight; }
+function ticksToX(t){ return t * metrics.pxPerTick; }
+function renderKeys(){
   elKeys.innerHTML = '';
   const h = (metrics.highestKey - metrics.lowestKey) * metrics.keyHeight;
   elKeys.style.height = h + 'px';
-  for (let m = metrics.lowestKey; m < metrics.highestKey; m++) {
-    const div = document.createElement('div');
-    div.className = 'key';
-    const y = (metrics.highestKey - m - 1) * metrics.keyHeight;
-    div.style.top = y + 'px';
-    div.style.height = metrics.keyHeight + 'px';
-    const name = midiToName(m);
-    div.textContent = name;
-    if (name.includes('#')) div.style.background = '#121520';
+  for (let m = metrics.lowestKey; m < metrics.highestKey; m++){
+    const div = document.createElement('div'); div.className='key';
+    const y = pitchToY(m); div.style.top=y+'px'; div.style.height=metrics.keyHeight+'px';
+    div.textContent = midiToName(m); if ([1,3,6,8,10].includes(m%12)) div.style.background = '#121520';
     elKeys.appendChild(div);
   }
 }
 
-function midiToName(n) {
-  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const o = Math.floor(n/12)-1; return names[n%12] + o;
-}
-
-// ======= グリッドとノート描画（Canvas） =======
-function ticksToX(t) { return t * metrics.pxPerTick; }
-function pitchToY(p) { return (metrics.highestKey - p - 1) * metrics.keyHeight; }
-
-function draw() {
-  const w = elCanvas.width, h = elCanvas.height;
-  ctx.clearRect(0,0,w,h);
-
-  // 背景 & 横グリッド（鍵盤ライン）
-  for (let p = metrics.lowestKey; p < metrics.highestKey; p++) {
-    const y = pitchToY(p);
-    ctx.fillStyle = ((p%12)==1|| (p%12)==3 || (p%12)==6 || (p%12)==8 || (p%12)==10) ? '#151821' : '#1b1f2a';
-    ctx.fillRect(0, y, w, metrics.keyHeight);
-  }
-
-  // 縦グリッド（拍・小節）
-  const beatTicks = PPQ * (4/state.timeSig.den);
-  const barTicks = beatTicks * state.timeSig.num;
-  const maxTicks = Math.ceil(w / metrics.pxPerTick);
-  for (let t = 0; t < maxTicks; t += beatTicks) {
-    const x = Math.floor(ticksToX(t)) + 0.5;
-    ctx.strokeStyle = (t % barTicks === 0) ? '#3a4150' : '#2a2f3a';
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
-  }
-
+// =============================
+// ピアノロール描画
+// =============================
+function draw(){ const w=elCanvas.width, h=elCanvas.height; ctx.clearRect(0,0,w,h);
+  // 背景・横グリッド
+  for (let p=metrics.lowestKey; p<metrics.highestKey; p++){ const y=pitchToY(p); ctx.fillStyle = ([1,3,6,8,10].includes(p%12)) ? '#141822' : '#1b1f2a'; ctx.fillRect(0,y,w,metrics.keyHeight); }
+  // 縦グリッド
+  const beatTicks = PPQ * (4/state.timeSig.den); const barTicks = beatTicks * state.timeSig.num; const maxTicks = Math.ceil(w/metrics.pxPerTick);
+  for (let t=0; t<maxTicks; t+=beatTicks){ const x = Math.floor(ticksToX(t))+0.5; ctx.strokeStyle = (t%barTicks===0)?'#3a4150':'#2a2f3a'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
   // ノート
-  for (const n of state.notes) {
-    const x = ticksToX(n.tickOn), y = pitchToY(n.pitch);
-    const w = Math.max(1, ticksToX(n.tickDur));
-    const sel = (state.selection === n.id);
-    ctx.fillStyle = sel ? '#ffd166' : '#7aa2ff';
-    ctx.strokeStyle = sel ? '#facc15' : '#5a86e6';
-    roundRect(ctx, x+0.5, y+2.5, w-1, metrics.keyHeight-5, 4, true, true);
+  for (const n of state.notes){ const x=ticksToX(n.tickOn), y=pitchToY(n.pitch), w=Math.max(3,ticksToX(n.tickDur)); const sel = state.selection===n.id; ctx.fillStyle = sel? 'var(--note-sel)':'var(--note)'; ctx.strokeStyle = sel? '#facc15':'var(--note-border)'; roundRect(ctx,x+0.5,y+2.5,w-1,metrics.keyHeight-5,4,true,true);
+    // 歌詞
+    ctx.fillStyle = '#0b1020cc'; ctx.fillRect(x+4,y+4, Math.min(64,w-8), metrics.keyHeight-8);
+    ctx.fillStyle = '#dbe7ff'; ctx.font='10px system-ui'; ctx.fillText(n.lyric, x+6, y+metrics.keyHeight-5);
   }
 }
+function roundRect(ctx,x,y,w,h,r,fill,stroke){ if(w<2*r) r=w/2; if(h<2*r) r=h/2; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke){ ctx.lineWidth=1; ctx.stroke(); } }
 
-function roundRect(ctx,x,y,w,h,r,fill,stroke){
-  if (w<2*r) r=w/2; if (h<2*r) r=h/2; ctx.beginPath(); ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
-  if (fill) ctx.fill(); if (stroke) { ctx.lineWidth=1; ctx.stroke(); }
-}
-
-// ======= マウス操作 =======
-let drag = null; // {mode:'create'|'move'|'resizeL'|'resizeR', id, startX,startY, orig}
-
-elCanvas.addEventListener('mousedown', (e)=>{
-  const {tick, pitch, x, y} = posFromEvent(e);
-  const hit = hitTest(x, y);
-  if (hit) {
-    state.selection = hit.id;
-    if (nearEdge(hit, x)) {
-      drag = { mode: (x < ticksToX(hit.tickOn)+6? 'resizeL' : 'resizeR'), id: hit.id, startX:x, startY:y, orig: {...hit} };
-    } else if (e.altKey) {
-      drag = { mode:'move', id: hit.id, startX:x, startY:y, orig:{...hit} };
-    }
-  } else {
-    // 新規作成
-    const id = state.nextId++;
-    const note = { id, tickOn: Math.floor(tick/30)*30, tickDur: PPQ, pitch, lyric: 'a' };
-    state.notes.push(note); state.selection = id;
-    drag = { mode:'resizeR', id, startX:x, startY:y, orig:{...note} };
-  }
-  syncStatus(); draw();
-});
-
-elCanvas.addEventListener('mousemove', (e)=>{
-  if (!drag) return;
-  const {tick, pitch, x, y} = posFromEvent(e);
-  const note = state.notes.find(n=>n.id===drag.id); if(!note) return;
-  const dxTicks = Math.round((x - drag.startX) / metrics.pxPerTick / 15) * 15; // 1/32グリッド
-  const dyPitch = Math.round((drag.startY - y) / metrics.keyHeight);
-
-  if (drag.mode==='move') {
-    note.tickOn = Math.max(0, drag.orig.tickOn + dxTicks);
-    note.pitch = clamp(metrics.lowestKey, metrics.highestKey-1, drag.orig.pitch + dyPitch);
-  } else if (drag.mode==='resizeR') {
-    note.tickDur = Math.max(30, drag.orig.tickDur + dxTicks);
-  } else if (drag.mode==='resizeL') {
-    const newOn = Math.max(0, drag.orig.tickOn + dxTicks);
-    const delta = note.tickOn - newOn; note.tickOn = newOn; note.tickDur = Math.max(30, drag.orig.tickDur + delta);
-  }
-  syncStatus(); draw();
-});
-
-window.addEventListener('mouseup', ()=>{ drag=null; });
-
-function posFromEvent(e){
-  const rect = elCanvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) + elWrap.scrollLeft;
-  const y = (e.clientY - rect.top) + elWrap.scrollTop;
-  const tick = Math.max(0, Math.round(x / metrics.pxPerTick));
-  const pitch = clamp(metrics.lowestKey, metrics.highestKey-1, metrics.highestKey-1 - Math.floor(y / metrics.keyHeight));
-  return { tick, pitch, x, y };
-}
-
-function hitTest(x, y){
-  for (let i = state.notes.length-1; i>=0; i--) {
-    const n = state.notes[i];
-    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch);
-    const nw = ticksToX(n.tickDur), nh = metrics.keyHeight;
-    if (x>=nx && x<=nx+nw && y>=ny && y<=ny+nh) return n;
-  }
-  return null;
-}
-function nearEdge(n, x){ const left=ticksToX(n.tickOn), right=left+ticksToX(n.tickDur); return Math.abs(x-left)<6 || Math.abs(x-right)<6; }
+// =============================
+// ノート編集
+// =============================
+let drag=null; // {mode:'create'|'move'|'resizeL'|'resizeR', id, startX,startY, orig}
+function posFromEvent(e){ const rect=elCanvas.getBoundingClientRect(); const x=(e.clientX-rect.left)+elWrap.scrollLeft; const y=(e.clientY-rect.top)+elWrap.scrollTop; const tick=Math.max(0,Math.round(x/metrics.pxPerTick)); const pitch = clamp(metrics.lowestKey, metrics.highestKey-1, metrics.highestKey-1 - Math.floor(y/metrics.keyHeight)); return {tick,pitch,x,y}; }
+function hitTest(x,y){ for(let i=state.notes.length-1;i>=0;i--){ const n=state.notes[i]; const nx=ticksToX(n.tickOn), ny=pitchToY(n.pitch); const nw=ticksToX(n.tickDur), nh=metrics.keyHeight; if(x>=nx && x<=nx+nw && y>=ny && y<=ny+nh) return n; } return null; }
+function nearEdge(n,x){ const left=ticksToX(n.tickOn), right=left+ticksToX(n.tickDur); return Math.abs(x-left)<6 || Math.abs(x-right)<6; }
 function clamp(a,b,v){ return Math.max(a, Math.min(b,v)); }
 
-// ======= 再生（シンセの仮実装：サイン波） =======
-let ac = null; let playing = false; let stopFn = null;
+elCanvas.addEventListener('mousedown', (e)=>{ const {tick,pitch,x,y}=posFromEvent(e); const hit=hitTest(x,y); if(hit){ state.selection=hit.id; if(nearEdge(hit,x)){ drag={mode:(x<ticksToX(hit.tickOn)+6?'resizeL':'resizeR'), id:hit.id, startX:x, startY:y, orig:{...hit}}; } else if (e.altKey){ drag={mode:'move', id:hit.id, startX:x,startY:y, orig:{...hit}}; } }
+  else { const id=state.nextId++; const note={id, tickOn:Math.floor(tick/30)*30, tickDur:PPQ, pitch, lyric:'a'}; state.notes.push(note); state.selection=id; drag={mode:'resizeR', id, startX:x,startY:y, orig:{...note}}; }
+  syncStatus(); draw(); });
 
-function ensureAC(){ if(!ac) ac = new (window.AudioContext||window.webkitAudioContext)(); return ac; }
+elCanvas.addEventListener('mousemove', (e)=>{ if(!drag) return; const {x,y}=posFromEvent(e); const note=state.notes.find(n=>n.id===drag.id); if(!note) return; const dxTicks = Math.round((x - drag.startX) / metrics.pxPerTick / 15) * 15; const dyPitch = Math.round((drag.startY - y) / metrics.keyHeight);
+  if (drag.mode==='move'){ note.tickOn=Math.max(0, drag.orig.tickOn + dxTicks); note.pitch=clamp(metrics.lowestKey, metrics.highestKey-1, drag.orig.pitch + dyPitch); }
+  else if (drag.mode==='resizeR'){ note.tickDur=Math.max(30, drag.orig.tickDur + dxTicks); }
+  else if (drag.mode==='resizeL'){ const newOn=Math.max(0, drag.orig.tickOn + dxTicks); const delta = (drag.orig.tickOn - newOn); note.tickOn=newOn; note.tickDur=Math.max(30, drag.orig.tickDur + delta); }
+  syncStatus(); draw(); });
+window.addEventListener('mouseup', ()=>{ drag=null; });
 
-function play(){
-  if (playing) return; ensureAC();
-  const startAt = ac.currentTime + 0.05;
-  const secPerTick = (60/state.bpm) / PPQ;
-  const master = ac.createGain(); master.gain.value=0.2; master.connect(ac.destination);
+// 歌詞編集（ダブルクリック）
+let editor=null; elCanvas.addEventListener('dblclick', (e)=>{ const {x,y}=posFromEvent(e); const hit=hitTest(x,y); if(!hit) return; const nx=ticksToX(hit.tickOn), ny=pitchToY(hit.pitch); const input=document.createElement('input'); input.className='inline-editor'; input.value=hit.lyric; input.style.left=(nx - elWrap.scrollLeft + 6)+'px'; input.style.top=(ny - elWrap.scrollTop + 4)+'px'; input.style.width='80px'; input.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ hit.lyric=input.value.trim(); cleanup(); draw(); } else if(ev.key==='Escape'){ cleanup(); } }); document.body.appendChild(input); input.focus(); editor=input; function cleanup(){ input.remove(); editor=null; } });
 
-  for (const n of state.notes){
-    const t0 = startAt + n.tickOn * secPerTick;
-    const t1 = t0 + Math.max(1, n.tickDur) * secPerTick;
-    const freq = 440 * Math.pow(2, (n.pitch-69)/12);
-    const osc = ac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
-    const g = ac.createGain();
-    // 簡易エンベロープ
-    const a=0.005,d=0.05,s=0.8,r=0.05;
-    g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(1, t0+a);
-    g.gain.linearRampToValueAtTime(s, t0+a+d);
-    g.gain.setValueAtTime(s, t1-r);
-    g.gain.linearRampToValueAtTime(0, t1);
-    osc.connect(g).connect(master);
-    osc.start(t0); osc.stop(t1);
+// =============================
+// 再生 & 書き出し
+// =============================
+let ac=null, playing=false, stopFn=null;
+function ensureAC(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); return ac; }
+function play(){ if(playing) return; if(state.notes.length===0){ alert('ノートがありません'); return;} ensureAC(); const startAt=ac.currentTime+0.05; const secPerTick=(60/state.bpm)/PPQ; const master=ac.createGain(); master.gain.value=0.9; master.connect(ac.destination);
+  if(!state.voicebank){ // サイン波仮再生
+    for(const n of state.notes){ const t0=startAt+n.tickOn*secPerTick; const t1=t0+Math.max(1,n.tickDur)*secPerTick; const f=440*Math.pow(2,(n.pitch-69)/12); const osc=ac.createOscillator(); osc.type='sine'; osc.frequency.value=f; const g=ac.createGain(); env(g.gain,t0,t1); osc.connect(g).connect(master); osc.start(t0); osc.stop(t1); }
+  } else {
+    scheduleVB(ac, master, startAt, false);
   }
-  playing = true; stopFn = ()=>{ ac && ac.close(); ac=null; playing=false; };
+  playing=true; stopFn=()=>{ ac && ac.close(); ac=null; playing=false; };
 }
-
 function stop(){ if(stopFn) stopFn(); }
 
-async function exportWav(){
-  const totalTicks = Math.max(0, ...state.notes.map(n=>n.tickOn+n.tickDur));
-  const sampleRate = 44100;
-  const duration = (60/state.bpm) * (totalTicks/PPQ) + 0.2; // tail
-  const oac = new OfflineAudioContext(1, Math.ceil(sampleRate*duration), sampleRate);
-  const secPerTick = (60/state.bpm) / PPQ;
-  const master = oac.createGain(); master.gain.value=0.2; master.connect(oac.destination);
-  for (const n of state.notes){
-    const t0 = n.tickOn * secPerTick;
-    const t1 = t0 + Math.max(1, n.tickDur) * secPerTick;
-    const freq = 440 * Math.pow(2, (n.pitch-69)/12);
-    const osc = oac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
-    const g = oac.createGain();
-    const a=0.005,d=0.05,s=0.8,r=0.05;
-    g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(1, t0+a);
-    g.gain.linearRampToValueAtTime(s, t0+a+d);
-    g.gain.setValueAtTime(s, t1-r);
-    g.gain.linearRampToValueAtTime(0, t1);
-    osc.connect(g).connect(master);
-    osc.start(t0); osc.stop(t1);
+async function exportWav(){ if(state.notes.length===0){ alert('ノートがありません'); return;} const totalTicks=Math.max(0, ...state.notes.map(n=>n.tickOn+n.tickDur)); const sampleRate=44100; const duration=(60/state.bpm)*(totalTicks/PPQ)+0.5; const oac=new OfflineAudioContext(1, Math.ceil(sampleRate*duration), sampleRate); const master=oac.createGain(); master.gain.value=0.9; master.connect(oac.destination); if(!state.voicebank){ // サイン波
+    const secPerTick=(60/state.bpm)/PPQ; for(const n of state.notes){ const t0=n.tickOn*secPerTick; const t1=t0+Math.max(1,n.tickDur)*secPerTick; const f=440*Math.pow(2,(n.pitch-69)/12); const osc=oac.createOscillator(); osc.type='sine'; osc.frequency.value=f; const g=oac.createGain(); env(g.gain,t0,t1); osc.connect(g).connect(master); osc.start(t0); osc.stop(t1); }
+  } else {
+    await scheduleVB(oac, master, 0, true);
   }
-  const rendered = await oac.startRendering();
-  downloadWav(rendered, 'render.wav');
+  const rendered=await oac.startRendering(); downloadWav(rendered,'render.wav'); }
+
+function env(param, t0, t1){ const a=0.005,d=0.05,s=0.85,r=0.05; param.setValueAtTime(0,t0); param.linearRampToValueAtTime(1,t0+a); param.linearRampToValueAtTime(s,t0+a+d); param.setValueAtTime(s, t1-r); param.linearRampToValueAtTime(0,t1); }
+
+// =============================
+// Voicebank 再生スケジューリング（簡易 wavtool + resampler）
+// =============================
+async function scheduleVB(audioCtx, master, startAt, offline){
+  const vb=state.voicebank; const secPerTick=(60/state.bpm)/PPQ; const cache=vb.wavCache;
+  // ノート順で処理
+  const notes=[...state.notes].sort((a,b)=>a.tickOn-b.tickOn);
+  for(const n of notes){ const alias = resolveAlias(n.lyric); const e = vb.entries.get(alias) || vb.entries.get(n.lyric);
+    if(!e){ // 見つからない場合サイン波
+      const t0=startAt+n.tickOn*secPerTick; const t1=t0+Math.max(1,n.tickDur)*secPerTick; const f=440*Math.pow(2,(n.pitch-69)/12); const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=f; const g=audioCtx.createGain(); env(g.gain,t0,t1); osc.connect(g).connect(master); osc.start(t0); osc.stop(t1); continue; }
+    // WAV 読み込み（キャッシュ）
+    const buf = await getWavBuffer(vb, e);
+    // oto パラメータ
+    const offset = Math.max(0, e.offset/1000);
+    const cons = Math.max(0, e.consonant/1000);
+    const pre = Math.max(0, e.preutter/1000);
+    const ovl = Math.max(0, e.overlap/1000);
+    const cutoffSec = (e.cutoff<0? Math.max(0, buf.duration + e.cutoff/1000) : Math.max(0, e.cutoff/1000));
+    const end = (cutoffSec>0? cutoffSec : buf.duration);
+    const vowelStart = offset + cons; // 母音部の開始
+
+    // 再生タイミング： preutter で先行再生し、ノート頭に子音が揃うように
+    const tNote0 = startAt + n.tickOn*secPerTick;
+    const tPlay0 = Math.max(0, tNote0 - pre);
+    const noteDurSec = Math.max(1, n.tickDur) * secPerTick;
+
+    // 簡易ピッチ推定：alias末尾の数字を基準音に（例: "a4" → 69-? ではなく MIDI=60+(4-4)*12+? 無いのでC4基準）
+    const baseMidi = parseBaseMidiFromAlias(alias) ?? 60; // C4 仮定
+    const ratePitch = Math.pow(2, (n.pitch - baseMidi)/12);
+
+    // 子音部（offset → vowelStart）をそのまま先行再生
+    const cLen = Math.max(0, vowelStart - offset);
+    if (cLen > 0){ const s = audioCtx.createBufferSource(); s.buffer = sliceBuffer(audioCtx, buf, offset, vowelStart); s.playbackRate.value = ratePitch; const g=audioCtx.createGain(); // 目立ちすぎないように
+      g.gain.value = 0.95; s.connect(g).connect(master); s.start(tPlay0); }
+
+    // 母音部（vowelStart → end）を簡易ループでノート長へフィットさせる
+    const vLen = Math.max(0, end - vowelStart);
+    if (vLen > 0){ const needed = Math.max(0.05, noteDurSec + (tNote0 - tPlay0) - cLen); // 子音で使った時間を引く
+      // 粗い時間伸張：母音部を粒(50ms)でタイル状に敷く（オーバーラップ=25ms）
+      const grain = 0.050, hop = 0.025; const grains = Math.max(1, Math.ceil((needed + 0.050)/hop));
+      let cur = tPlay0 + cLen; const fade = 0.012;
+      for (let i=0;i<grains;i++){
+        const startIn = vowelStart + ((i*hop) % Math.max(hop, vLen - grain));
+        const s = audioCtx.createBufferSource(); s.buffer = sliceBuffer(audioCtx, buf, startIn, Math.min(end, startIn+grain)); s.playbackRate.value = ratePitch; const g=audioCtx.createGain(); g.gain.setValueAtTime(0, cur); g.gain.linearRampToValueAtTime(1, cur+fade); g.gain.setValueAtTime(1, cur+grain-fade); g.gain.linearRampToValueAtTime(0, cur+grain);
+        s.connect(g).connect(master); s.start(cur); cur += hop; if (cur > tNote0 + needed) break;
+      }
+    }
+  }
 }
 
-function downloadWav(buffer, filename){
-  const numChan = buffer.numberOfChannels; const length = buffer.length; const sampleRate = buffer.sampleRate;
-  const data = buffer.getChannelData(0);
-  const bytes = 44 + length * numChan * 2; const ab = new ArrayBuffer(bytes); const view = new DataView(ab);
-  writeStr(view, 0, 'RIFF'); view.setUint32(4, 36 + length*2, true); writeStr(view, 8, 'WAVE');
-  writeStr(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChan, true);
-  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * numChan * 2, true);
-  view.setUint16(32, numChan * 2, true); view.setUint16(34, 16, true);
-  writeStr(view, 36, 'data'); view.setUint32(40, length * 2, true);
-  let off = 44; for (let i=0;i<length;i++,off+=2){ let s = Math.max(-1, Math.min(1, data[i])); view.setInt16(off, s<0 ? s*0x8000 : s*0x7FFF, true); }
-  const blob = new Blob([view], {type:'audio/wav'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
-}
-function writeStr(view, off, str){ for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
+function parseBaseMidiFromAlias(alias){ const m = alias.match(/([A-Za-zぁ-んァ-ヶー一-龯])(\d+)/); if(!m) return null; const num=parseInt(m[2],10); // だいたいの高さ。C4を60と仮定
+  // 仮ルール: 数字=オクターブ番号として C0=12 なので 12 + 12*num が基準
+  return 12 + 12*num; }
 
-// ======= 保存/読み込み =======
-function toProject(){ return { version:1, ppq:PPQ, bpm:state.bpm, timeSig:state.timeSig, notes:state.notes }; }
+async function getWavBuffer(vb, entry){ const key = entry.wav.toLowerCase(); if (vb.wavCache.has(key)) return vb.wavCache.get(key);
+  // ルート or サブフォルダからWAV取得
+  async function getFileFromDir(dir, name){ for await (const [k, h] of dir.entries()){ if (k.toLowerCase()===name.toLowerCase()) return await h.getFile(); }
+    // サブフォルダ探索（浅め）
+    for await (const [k, h] of dir.entries()){ if (h.kind==='directory'){ for await (const [k2,h2] of h.entries()){ if (k2.toLowerCase()===name.toLowerCase()) return await h2.getFile(); } } }
+    return null; }
+  const file = await getFileFromDir(entry.dir, entry.wav);
+  if(!file){ console.warn('WAV not found', entry.wav); throw new Error('WAV not found '+entry.wav); }
+  const arrayBuf = await file.arrayBuffer(); const audioBuf = await ensureAC().decodeAudioData(arrayBuf);
+  vb.wavCache.set(key, audioBuf); return audioBuf; }
+
+function sliceBuffer(ctx, src, t0, t1){ const ch=src.numberOfChannels; const sr=src.sampleRate; const a=Math.floor(t0*sr); const b=Math.floor(t1*sr); const len=Math.max(0,b-a); const out=ctx.createBuffer(ch, len, sr); for(let c=0;c<ch;c++){ const tmp = src.getChannelData(c).subarray(a,b); out.getChannelData(c).set(tmp); } return out; }
+
+// =============================
+// oto.ini パーサ & Voicebank ローダ
+// =============================
+async function loadVoicebank(){ if(!('showDirectoryPicker' in window)){ alert('showDirectoryPicker に対応したブラウザ（Chrome/Edge）でお試しください。'); return; }
+  // @ts-ignore
+  const dir = await window.showDirectoryPicker(); const entries = new Map(); const wavCache = new Map(); let name = dir.name;
+  // character.txt の name を拾う
+  for await (const [k,h] of dir.entries()){ if (k.toLowerCase()==='character.txt'){ const txt = await (await h.getFile()).text(); const m = /name\s*:?\s*(.*)/i.exec(txt); if(m) name = m[1].trim(); }}
+  // oto.ini を再帰的に集める（1階層+すこし深め）
+  async function scanOto(d){ for await (const [k,h] of d.entries()){ if (h.kind==='file' && k.toLowerCase()==='oto.ini'){ const txt = await (await h.getFile()).text(); const list = parseOto(txt); for(const e of list){ e.dir = d; entries.set(e.alias, e); } } else if (h.kind==='directory'){ // 2階層まで
+        for await (const [k2,h2] of h.entries()){ if (k2.toLowerCase()==='oto.ini'){ const txt = await (await h2.getFile()).text(); const list = parseOto(txt); for(const e of list){ e.dir = h; entries.set(e.alias, e); } } }
+      } } }
+  await scanOto(dir);
+  state.voicebank = { name, entries, wavCache, dir };
+  elVbName.textContent = name; elVbInfo.textContent = `${entries.size} aliases`;
+}
+
+function parseOto(text){ const out=[]; const lines=text.split(/\r?\n/); for(const line0 of lines){ const line=line0.trim(); if(!line) continue; const eq=line.indexOf('='); if(eq<0) continue; const left=line.slice(0,eq); const right=line.slice(eq+1); const [wav, alias] = left.split(','); const parts = Object.fromEntries(right.split(',').map(kv=>{ const i=kv.indexOf(' '); return [kv.slice(0,i).trim(), kv.slice(i+1).trim()]; })); out.push({ wav, alias, offset: +num(parts.offset||parts.o), consonant: +num(parts.consonant||parts.c), cutoff: +num(parts.cutoff||parts.C), preutter: +num(parts.preutter||parts.p), overlap: +num(parts.overlap||parts.O) }); }
+  return out; function num(v){ const n=parseFloat(v); return isFinite(n)?n:0; } }
+
+function resolveAlias(lyric){ // 単純な候補展開（先頭/末尾記号）
+  const L = lyric.trim(); const cands = [L, `-${L}`, `${L}-`]; if(state.voicebank){ for(const c of cands){ if(state.voicebank.entries.has(c)) return c; } }
+  return L; }
+
+// =============================
+// プロジェクト保存/読み込み（JSON）
+// =============================
+function toProject(){ return {version:1, ppq:PPQ, bpm:state.bpm, timeSig:state.timeSig, notes:state.notes}; }
 function fromProject(p){ state.bpm=p.bpm||120; state.timeSig=p.timeSig||{num:4,den:4}; state.notes=(p.notes||[]); }
-
-function saveFile(){ const data = JSON.stringify(toProject(), null, 2); const blob = new Blob([data], {type:'application/json'}); const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='project.json'; a.click(); }
+function saveFile(){ const blob=new Blob([JSON.stringify(toProject(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='project.json'; a.click(); }
 async function openFile(){ elFileOpen.value=''; elFileOpen.click(); }
-elFileOpen.addEventListener('change', async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); try{ const p=JSON.parse(text); fromProject(p); syncFromInputs(); resizeCanvasToContent(); draw(); }catch(err){ alert('JSONの読み込みに失敗しました'); }});
+elFileOpen.addEventListener('change', async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); try{ if(f.name.toLowerCase().endsWith('.json')){ fromProject(JSON.parse(text)); } else { // .ust/.ustx → ざっくりJSON化（最小）
+      fromProject(convertUSTtoProject(text)); }
+    syncFromInputs(); resizeCanvasToContent(); draw(); }catch(err){ console.error(err); alert('読み込みに失敗しました'); } });
 
-// ======= ツールバー挙動 =======
-function syncFromInputs(){ state.bpm = parseFloat(elBpm.value||'120'); state.timeSig.num = parseInt(elNum.value||'4',10); state.timeSig.den=parseInt(elDen.value||'4',10); syncStatus(); }
-function syncStatus(){ elPPQ.textContent=String(PPQ); const sel = state.selection ? state.notes.find(n=>n.id===state.selection) : null; elSel.textContent = sel? `id ${sel.id}` : 'なし'; elLen.textContent = sel? sel.tickDur : 0; elPos.textContent = sel? sel.tickOn : 0; }
+function convertUSTtoProject(text){ // 超簡易UST読み（Tempo/NoteNum/Length/Lyric）
+  const lines=text.split(/\r?\n/); let bpm=120; const notes=[]; let curTick=0; for(const ln of lines){ const mT=/^Tempo=(.*)/.exec(ln); if(mT){ bpm=parseFloat(mT[1])||bpm; }
+    const mN=/^NoteNum=(\d+)/.exec(ln); const mL=/^Length=(\d+)/.exec(ln); const mY=/^Lyric=(.*)/.exec(ln);
+    if(mN && mL && mY){ const pitch=parseInt(mN[1],10); const tickDur=parseInt(mL[1],10); const lyric=mY[1].trim(); notes.push({ id:notes.length+1, tickOn:curTick, tickDur, pitch, lyric }); curTick+=tickDur; }
+  }
+  return {version:1, ppq:480, bpm, timeSig:{num:4,den:4}, notes}; }
 
-// ======= キャンバスサイズ管理 =======
-function resizeCanvasToContent(){
-  const totalTicks = Math.max(1920, ...state.notes.map(n=>n.tickOn+n.tickDur), 1920);
-  const w = Math.ceil(totalTicks * metrics.pxPerTick) + 400;
-  const h = (metrics.highestKey - metrics.lowestKey) * metrics.keyHeight;
-  elCanvas.width = w; elCanvas.height = h; draw();
-}
+// =============================
+// WAV エクスポート
+// =============================
+function downloadWav(buffer, filename){ const numChan=buffer.numberOfChannels; const length=buffer.length; const sampleRate=buffer.sampleRate; const data=buffer.getChannelData(0); const bytes=44 + length*numChan*2; const ab=new ArrayBuffer(bytes); const view=new DataView(ab);
+  writeStr(view,0,'RIFF'); view.setUint32(4, 36 + length*2, true); writeStr(view,8,'WAVE'); writeStr(view,12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,numChan,true); view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*numChan*2,true); view.setUint16(32,numChan*2,true); view.setUint16(34,16,true); writeStr(view,36,'data'); view.setUint32(40,length*2,true); let off=44; for(let i=0;i<length;i++,off+=2){ let s=Math.max(-1,Math.min(1,data[i])); view.setInt16(off, s<0? s*0x8000 : s*0x7FFF, true); } const blob=new Blob([view],{type:'audio/wav'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); }
+function writeStr(view,off,str){ for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
 
-// ======= イベント結線 =======
+// =============================
+// ステータス & サイズ
+// =============================
+function syncFromInputs(){ state.bpm=parseFloat(elBpm.value||'120'); state.timeSig.num=parseInt(elNum.value||'4',10); state.timeSig.den=parseInt(elDen.value||'4',10); syncStatus(); }
+function syncStatus(){ elPPQ.textContent=String(PPQ); const sel=state.selection? state.notes.find(n=>n.id===state.selection):null; elSel.textContent=sel? `id ${sel.id}`:'なし'; elLen.textContent=sel? sel.tickDur:0; elPos.textContent=sel? sel.tickOn:0; }
+function resizeCanvasToContent(){ const totalTicks=Math.max(1920, ...state.notes.map(n=>n.tickOn+n.tickDur), 1920); const w=Math.ceil(totalTicks*metrics.pxPerTick)+400; const h=(metrics.highestKey-metrics.lowestKey)*metrics.keyHeight; elCanvas.width=w; elCanvas.height=h; draw(); }
+
+// =============================
+// イベント結線
+// =============================
 window.addEventListener('resize', ()=>draw());
 ['input','change'].forEach(ev=>{ elBpm.addEventListener(ev, ()=>{ syncFromInputs(); }); elNum.addEventListener(ev, ()=>{ syncFromInputs(); draw(); }); elDen.addEventListener(ev, ()=>{ syncFromInputs(); draw(); }); });
 
@@ -339,13 +327,12 @@ document.getElementById('btnSave').addEventListener('click', saveFile);
 document.getElementById('btnPlay').addEventListener('click', play);
 document.getElementById('btnStop').addEventListener('click', stop);
 document.getElementById('btnExport').addEventListener('click', exportWav);
+document.getElementById('btnLoadVB').addEventListener('click', loadVoicebank);
 
-// ======= 初期化 =======
-renderKeys();
-resizeCanvasToContent();
-draw();
-syncFromInputs();
-
+// =============================
+// 初期化
+// =============================
+renderKeys(); resizeCanvasToContent(); draw(); syncFromInputs();
 </script>
 </body>
 </html>
