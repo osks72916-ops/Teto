@@ -3,32 +3,31 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>WebUTAU — フル機能版（できるだけ本家再現 + 高度機能）</title>
+<title>WebUTAU — フル機能版</title>
 <style>
-:root{ --bg:#e9eef6; --panel:#cbd6e8; --line:#a6b6d0; --note:#7fb7ff; --note-sel:#ff9fb8; --text:#102030; }
+:root{ --bg:#eef3fb; --panel:#dbe9ff; --line:#b7c9e6; --note:#6fb3ff; --note-sel:#ff9bb3; --text:#102030; }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Meiryo, 'Hiragino Kaku Gothic ProN', 'Segoe UI', Arial, sans-serif}
-#menu{display:flex;gap:8px;padding:6px 8px;background:#f6f8fb;border-bottom:1px solid var(--line);align-items:center}
+#menu{display:flex;gap:8px;padding:6px 8px;background:#f7fbff;border-bottom:1px solid var(--line);align-items:center}
 .icon-btn{background:#fff;border:1px solid var(--line);padding:6px 8px;border-radius:4px;cursor:pointer}
-.toolbar{display:flex;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:linear-gradient(#f7fbff,#eef4ff)}
-.container{display:flex;height:calc(100% - 106px);}
-.leftPane{width:140px;background:#f5f8fb;border-right:1px solid var(--line);padding:8px}
+.toolbar{display:flex;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:linear-gradient(#ffffff,#eef6ff)}
+.container{display:flex;height:calc(100% - 106px);min-height:0}
+.leftPane{width:120px;background:#f5f8fb;border-right:1px solid var(--line);padding:8px;overflow:auto}
 .keys{position:relative;height:100%;overflow:hidden}
-.key{height:24px;border-bottom:1px solid #d6dced;display:flex;align-items:center;justify-content:center;font-size:12px;color:#2b4666}
-.rightPane{flex:1;display:flex;flex-direction:column}
-.topArea{height:48px;padding:6px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:linear-gradient(#fff,#f3f7ff)}
-.canvasWrap{flex:1;overflow:auto;position:relative;background:linear-gradient(#ffffff,#eef4ff)}
+.key{height:20px;border-bottom:1px solid #e2eaf6;display:flex;align-items:center;justify-content:center;font-size:11px;color:#2b4666}
+.rightPane{flex:1;display:flex;flex-direction:column;min-height:0}
+.topArea{height:44px;padding:6px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:linear-gradient(#fff,#f3f7ff)}
+.canvasWrap{flex:1;overflow:auto;position:relative;background:linear-gradient(#ffffff,#eef4ff);min-height:0}
 #roll{display:block}
 .sidebar{width:320px;border-left:1px solid var(--line);background:#f7fbff;padding:8px;overflow:auto}
-.containerFull{display:flex;flex:1;min-height:0}
-.statusbar{height:36px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:6px 8px;background:#f7fbff}
+.statusbar{height:34px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:6px 8px;background:#f7fbff}
 .input{padding:6px;border:1px solid var(--line);border-radius:4px;background:#fff}
 .small{font-size:12px;color:#4b678a}
-.note-lyric{font-weight:700}
-.pitch-curve{background:#fff;border:1px solid #cdd9ee;height:140px}
+.pitch-curve{background:#fff;border:1px solid #cdd9ee;height:140px;width:100%}
 </style>
 </head>
 <body>
+<!-- Menu -->
 <div id="menu">
   <button class="icon-btn" id="newBtn">新規</button>
   <button class="icon-btn" id="openBtn">開く</button>
@@ -36,52 +35,53 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-famil
   <div style="flex:1"></div>
   <div class="small">Tempo <input id="tempo" class="input" type="number" value="120" style="width:72px"> PPQ <input id="ppq" class="input" type="number" value="480" style="width:72px"></div>
 </div>
+
+<!-- Toolbar -->
 <div class="toolbar">
-  <div><button class="icon-btn" id="playBtn">▶ 再生</button><button class="icon-btn" id="stopBtn">■ 停止</button><button class="icon-btn" id="renderBtn">Render</button><button class="icon-btn" id="exportBtn">WAV書き出し</button></div>
+  <div><button class="icon-btn" id="playBtn">▶</button><button class="icon-btn" id="stopBtn">■</button><button class="icon-btn" id="renderBtn">Render</button><button class="icon-btn" id="exportBtn">WAV出力</button></div>
   <div style="width:16px"></div>
-  <div><button class="icon-btn" id="loadDefault">デフォルト(teto)読み込み</button><button class="icon-btn" id="loadVb">Voicebank 読込</button></div>
+  <div><button class="icon-btn" id="loadDefault">デフォルト (teto) 読込</button><button class="icon-btn" id="loadVB">Voicebank 読込</button></div>
   <div style="flex:1"></div>
   <div class="small">Quantize <select id="quant" class="input"><option value="480">1/4</option><option value="240">1/8</option><option value="120" selected>1/16</option><option value="60">1/32</option></select></div>
 </div>
 
 <div class="container">
   <div class="leftPane">
-    <div style="font-weight:800;margin-bottom:6px">Piano</div>
+    <div style="font-weight:700;margin-bottom:6px">Piano</div>
     <div id="keys" class="keys"></div>
-    <div style="margin-top:12px">
-      <div class="small">ツール</div>
-      <button class="icon-btn" id="toolNote">ノート</button>
-      <button class="icon-btn" id="toolPitch">ピッチ</button>
-    </div>
+    <div style="margin-top:10px"><div class="small">ツール</div><button class="icon-btn" id="toolNote">ノート</button> <button class="icon-btn" id="toolPitch">ピッチ</button></div>
   </div>
 
-  <div class="containerFull">
+  <div style="display:flex;flex:1;min-height:0">
     <div class="rightPane">
       <div class="topArea small">
         <div>Mode: <select id="mode" class="input"><option>Note</option><option>Pitch</option></select></div>
-        <div style="margin-left:8px">Snap: <input id="snap" type="checkbox" checked></div>
-        <div style="margin-left:8px">BPM: <span id="bpmDisplay">120</span></div>
-        <div style="margin-left:8px">Voicebank: <span id="vbName">(未)</span></div>
+        <div>Snap: <input id="snap" type="checkbox" checked style="margin-left:6px"></div>
+        <div style="margin-left:12px">BPM: <span id="bpmDisplay">120</span></div>
+        <div style="margin-left:12px">Voicebank: <span id="vbName">(未)</span></div>
         <div style="flex:1"></div>
-        <div class="small">選択歌詞: <input id="lyricBox" class="input" style="width:120px"></div>
+        <div>Lyric: <input id="lyricBox" class="input" style="width:120px"></div>
       </div>
 
       <div style="display:flex;flex:1;min-height:0">
         <div class="canvasWrap" id="canvasWrap">
           <canvas id="roll"></canvas>
         </div>
+
         <div class="sidebar">
           <div style="font-weight:800">選択ノート</div>
-          <div>Lyric: <input id="propLyric" class="input" style="width:100%"></div>
+          <div style="margin-top:6px">Lyric: <input id="propLyric" class="input" style="width:100%"></div>
           <div style="margin-top:8px">Pitch (MIDI): <input id="propPitch" type="number" class="input" style="width:80px"></div>
           <div style="margin-top:8px">Length (ticks): <input id="propLen" type="number" class="input" style="width:120px"></div>
           <div style="margin-top:8px">VEL: <input id="propVel" type="range" min="0" max="127" value="100" style="width:100%"></div>
           <div style="margin-top:8px">PBS: <input id="propPBS" class="input" style="width:80px"></div>
           <div style="margin-top:8px">PBW: <input id="propPBW" class="input" style="width:80px"></div>
           <div style="margin-top:8px">PBY: <input id="propPBY" class="input" style="width:80px"></div>
+
           <div style="margin-top:12px;font-weight:800">Pitch Editor</div>
           <canvas id="pitchCanvas" class="pitch-curve" width="280"></canvas>
-          <div style="margin-top:8px">Pitch pointsをドラッグして編集できます（簡易）</div>
+          <div style="margin-top:8px;font-size:12px;color:#4b678a">ポイントをクリックで追加。ドラッグで移動。</div>
+          <div style="margin-top:12px"><button class="icon-btn" id="undoBtn">Undo</button><button class="icon-btn" id="redoBtn">Redo</button></div>
         </div>
       </div>
 
@@ -90,39 +90,64 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-famil
         <div class="small">Tick: <span id="tick">0</span></div>
         <div class="small">Length: <span id="len">0</span></div>
         <div style="flex:1"></div>
-        <div class="small">Tips: ダブルクリックで歌詞編集 / Alt+ドラッグで移動 / 端ドラッグで長さ変更</div>
+        <div class="small">Tips: ダブルクリックで歌詞 / Altドラッグで移動 / 端をドラッグで長さ変更</div>
       </div>
     </div>
   </div>
 </div>
 
 <input id="fileOpen" type="file" accept=".json,.ust" style="display:none">
-<input id="vbDir" type="file" webkitdirectory directory multiple style="display:none">
+<input id="vbPicker" type="file" webkitdirectory directory multiple style="display:none">
 
 <script>
-// =================== Core model ===================
-const PPQ_DEFAULT = 480;
-let PPQ = PPQ_DEFAULT, BPM = 120;
-let notes = []; // {id, tickOn, tickDur, pitch, lyric, vel, PBS, PBW, PBY, pitchPoints: [{x,y}]}
-let nextId = 1;
-let selection = null;
-let vb = null; // {name, entries: Map(alias->entry), wavCache: Map(file->AudioBuffer)}
+// ---------- Core state ----------
+let PPQ = 480, BPM = 120;
+let notes = []; // {id,tickOn,tickDur,pitch,lyric,vel,PBS,PBW,PBY,pitchPoints}
+let nextId = 1, selection = null;
+let vb = null; // {name,entries:Map, wavCache:Map}
+const undoStack = [], redoStack = [];
+const ppm = { pxPerTick: 0.12, keyHeight: 20, lowest:36, highest:96 };
 
-// UI constants
-const ppm = { pxPerTick: 0.12, keyHeight: 20, lowest: 36, highest: 96 };
-const roll = document.getElementById('roll'); const ctx = roll.getContext('2d');
+// ---------- Audio helpers ----------
+let audioCtx = null;
+async function ensureAudio(){ if(audioCtx && audioCtx.state!=='closed') return audioCtx; audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function decodeAudioDataSafe(ac, arrayBuffer){
+  return new Promise((res,rej)=>{
+    try{
+      const p = ac.decodeAudioData(arrayBuffer.slice(0));
+      if(p && p.then) p.then(res).catch(()=>ac.decodeAudioData(arrayBuffer.slice(0),res,rej));
+      else ac.decodeAudioData(arrayBuffer.slice(0),res,rej);
+    }catch(e){ ac.decodeAudioData(arrayBuffer.slice(0),res,rej); }
+  });
+}
+
+// ---------- Canvas & drawing ----------
+const roll = document.getElementById('roll');
+const ctx = roll.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
 
-// Audio
-let audioCtx = null; async function ensureAudio(){ if(audioCtx && audioCtx.state!=='closed') return audioCtx; audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
-function decodeAudioDataSafe(ac, arrayBuffer){ return new Promise((res,rej)=>{ try{ const p=ac.decodeAudioData(arrayBuffer.slice(0)); if(p && p.then){ p.then(res).catch(()=>ac.decodeAudioData(arrayBuffer.slice(0),res,rej)); } else ac.decodeAudioData(arrayBuffer.slice(0),res,rej); }catch(e){ ac.decodeAudioData(arrayBuffer.slice(0),res,rej); } }); }
+function resizeCanvas(){
+  const w = Math.max(1600, Math.ceil((getLengthTicks()+PPQ) * ppm.pxPerTick));
+  const h = (ppm.highest - ppm.lowest) * ppm.keyHeight;
+  roll.width = w; roll.height = h;
+  canvasWrap.scrollLeft = 0; canvasWrap.scrollTop = 0;
+  renderKeys(); draw();
+}
+window.addEventListener('resize', resizeCanvas);
 
-// =================== Layout & draw ===================
-function resize(){ const w = Math.max(2400, Math.ceil((getLengthTicks()+PPQ) * ppm.pxPerTick)); const h = (ppm.highest - ppm.lowest) * ppm.keyHeight; roll.width = w; roll.height = h; canvasWrap.scrollLeft = 0; canvasWrap.scrollTop = 0; renderKeys(); draw(); }
-window.addEventListener('resize', resize);
 function getLengthTicks(){ if(notes.length===0) return 1920; return Math.max(...notes.map(n=>n.tickOn+n.tickDur)); }
-
-function renderKeys(){ const keysEl = document.getElementById('keys'); keysEl.innerHTML=''; const h = (ppm.highest-ppm.lowest)*ppm.keyHeight; keysEl.style.height = h+'px'; for(let m=ppm.lowest;m<ppm.highest;m++){ const div=document.createElement('div'); div.className='key'; div.style.height = ppm.keyHeight+'px'; div.textContent = midiToName(m); if([1,3,6,8,10].includes(m%12)) div.style.background='#e8edf8'; keysEl.appendChild(div); } }
+function renderKeys(){
+  const keysEl = document.getElementById('keys');
+  keysEl.innerHTML = '';
+  const h = (ppm.highest - ppm.lowest) * ppm.keyHeight;
+  keysEl.style.height = h + 'px';
+  for(let m=ppm.lowest; m<ppm.highest; m++){
+    const d = document.createElement('div'); d.className='key'; d.style.height = ppm.keyHeight+'px';
+    d.textContent = midiToName(m);
+    if([1,3,6,8,10].includes(m%12)) d.style.background='#eaf0ff';
+    keysEl.appendChild(d);
+  }
+}
 function midiToName(n){ const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return names[n%12]+Math.floor(n/12-1); }
 
 function ticksToX(t){ return Math.round(t * ppm.pxPerTick); }
@@ -130,93 +155,345 @@ function xToTicks(x){ return Math.round(x / ppm.pxPerTick); }
 function pitchToY(p){ return (ppm.highest - p - 1) * ppm.keyHeight; }
 function snapTick(t){ if(!document.getElementById('snap').checked) return t; const q = parseInt(document.getElementById('quant').value,10); return Math.round(t / q) * q; }
 
-function draw(){ ctx.clearRect(0,0,roll.width,roll.height);
+function draw(){
+  ctx.clearRect(0,0,roll.width,roll.height);
   // rows
-  for(let p=ppm.lowest;p<ppm.highest;p++){ const y=pitchToY(p); ctx.fillStyle = ([1,3,6,8,10].includes(p%12))? '#f5f7fb':'#ffffff'; ctx.fillRect(0,y,roll.width,ppm.keyHeight); ctx.strokeStyle='#e0e7f2'; ctx.beginPath(); ctx.moveTo(0,y+ppm.keyHeight); ctx.lineTo(roll.width,y+ppm.keyHeight); ctx.stroke(); }
-  // vertical bars
-  const beatTicks = PPQ; const barTicks = beatTicks * 4; for(let t=0;t<getLengthTicks();t+=PPQ/4){ const x=ticksToX(t); ctx.strokeStyle=(t%barTicks===0)?'#ff7f7f':'#d0d8ea'; ctx.lineWidth=(t%barTicks===0)?1.2:0.7; ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,roll.height); ctx.stroke(); }
+  for(let p=ppm.lowest; p<ppm.highest; p++){
+    const y = pitchToY(p);
+    ctx.fillStyle = ([1,3,6,8,10].includes(p%12))? '#f7fbff':'#ffffff';
+    ctx.fillRect(0,y,roll.width,ppm.keyHeight);
+    ctx.strokeStyle = '#e6eef9'; ctx.beginPath(); ctx.moveTo(0,y+ppm.keyHeight); ctx.lineTo(roll.width,y+ppm.keyHeight); ctx.stroke();
+  }
+  // vertical beat/measure lines
+  const beatTicks = PPQ, barTicks = beatTicks * 4;
+  for(let t=0; t<getLengthTicks(); t+=PPQ/4){
+    const x = ticksToX(t);
+    ctx.strokeStyle = (t%barTicks===0)?'#ff9aa2':'#d7e1f3'; ctx.lineWidth = (t%barTicks===0)?1.2:0.6;
+    ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,roll.height); ctx.stroke();
+  }
   // notes
-  for(const n of notes){ const x=ticksToX(n.tickOn), y=pitchToY(n.pitch); const w=Math.max(4,ticksToX(n.tickDur)); const sel = (selection===n.id);
-    ctx.fillStyle = sel? 'var(--note-sel)' : 'var(--note)'; ctx.strokeStyle = sel? '#ff6f8f' : '#407fcf'; roundRect(ctx,x+0.5,y+2.5,w-1,ppm.keyHeight-5,6,true,true);
-    ctx.fillStyle='#02243a'; ctx.fillRect(x+6,y+6,Math.min(80,w-12),ppm.keyHeight-12); ctx.fillStyle='#fff'; ctx.font='12px system-ui'; ctx.fillText(n.lyric||'', x+8, y+ppm.keyHeight-6);
-    // draw velocity small bar
-    const vel = n.vel ?? 100; ctx.fillStyle='#1f6fb3'; ctx.fillRect(x+w-6, y+4, 4, Math.round((ppm.keyHeight-8)*(vel/127))); }
+  for(const n of notes){
+    const x = ticksToX(n.tickOn), y = pitchToY(n.pitch), w = Math.max(4,ticksToX(n.tickDur));
+    const sel = (selection === n.id);
+    ctx.fillStyle = sel? 'var(--note-sel)' : 'var(--note)'; ctx.strokeStyle = sel? '#ff6f8f' : '#2f7fcf';
+    roundRect(ctx, x+0.5, y+2.5, w-1, ppm.keyHeight-5, 6, true, true);
+    ctx.fillStyle = '#02243a'; ctx.fillRect(x+6, y+6, Math.min(80, w-12), ppm.keyHeight-12);
+    ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.fillText(n.lyric||'', x+8, y+ppm.keyHeight-6);
+    // vel bar
+    const vel = n.vel ?? 100; ctx.fillStyle = '#185f9a'; ctx.fillRect(x+w-6, y+4, 4, Math.round((ppm.keyHeight-8)*(vel/127)));
+  }
 }
-function roundRect(ctx,x,y,w,h,r,fill,stroke){ if(w<2*r) r=w/2; if(h<2*r) r=h/2; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
 
-// =================== Interaction ===================
-let dragging=null; // {mode,id,startX,startY,orig}
-roll.addEventListener('pointerdown', e=>{ roll.setPointerCapture?.(e.pointerId); const rect=roll.getBoundingClientRect(); const x=e.clientX-rect.left + roll.parentElement.scrollLeft; const y=e.clientY-rect.top + roll.parentElement.scrollTop; const tick = snapTick(xToTicks(x)); const pitch = clamp(ppm.lowest,ppm.highest-1, Math.floor(ppm.highest - (y/ppm.keyHeight)));
-  const hit = notes.slice().reverse().find(n=>{ const nx=ticksToX(n.tickOn), ny=pitchToY(n.pitch), nw=Math.max(4,ticksToX(n.tickDur)); return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight; });
-  if(hit){ selection = hit.id; document.getElementById('sel').innerText = selection; const nx=ticksToX(hit.tickOn), nw=Math.max(4,ticksToX(hit.tickDur)); if(Math.abs(x-nx)<8){ dragging={mode:'resizeL',id:hit.id,startX:x,orig:{...hit}}; } else if(Math.abs(x-(nx+nw))<8){ dragging={mode:'resizeR',id:hit.id,startX:x,orig:{...hit}}; } else if(e.altKey || e.shiftKey){ dragging={mode:'move',id:hit.id,startX:x,startY:y,orig:{...hit}}; } else { dragging={mode:'select',id:hit.id}; }
-  } else { const id=nextId++; const note={id, tickOn:tick, tickDur:PPQ, pitch, lyric:document.getElementById('lyricBox').value||'あ', vel:100, PBS:0, PBW:'', PBY:'', pitchPoints:[]} ; notes.push(note); selection=id; dragging={mode:'resizeR',id,startX:x,orig:{...note}}; }
-  draw(); updateProps(); });
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  if(w<2*r) r=w/2; if(h<2*r) r=h/2;
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill) ctx.fill(); if(stroke) ctx.stroke();
+}
 
-roll.addEventListener('pointermove', e=>{ if(!dragging) return; const rect=roll.getBoundingClientRect(); const x=e.clientX-rect.left + roll.parentElement.scrollLeft; const y=e.clientY-rect.top + roll.parentElement.scrollTop; const n = notes.find(z=>z.id===dragging.id); if(!n) return; if(dragging.mode==='move'){ const dx = x - dragging.startX; const dy = y - dragging.startY; const newTick = snapTick(dragging.orig.tickOn + xToTicks(dx)); const newPitch = clamp(ppm.lowest, ppm.highest-1, dragging.orig.pitch - Math.round(dy/ppm.keyHeight)); n.tickOn = Math.max(0, newTick); n.pitch = newPitch; } else if(dragging.mode==='resizeR'){ const deltaPx = x - dragging.startX; const newDurTicks = Math.max(30, xToTicks(dragging.orig.tickDur + deltaPx)); n.tickDur = newDurTicks; } else if(dragging.mode==='resizeL'){ const deltaPx = x - dragging.startX; const newOn = Math.max(0, snapTick(dragging.orig.tickOn + xToTicks(deltaPx))); const deltaTicks = dragging.orig.tickOn - newOn; n.tickOn = newOn; n.tickDur = Math.max(30, dragging.orig.tickDur + deltaTicks); }
-  draw(); updateProps(); });
+// ---------- Interaction (pointer/touch + mouse) ----------
+let dragging = null; // {mode,id,startX,startY,orig}
+roll.addEventListener('pointerdown', e => {
+  roll.setPointerCapture?.(e.pointerId);
+  const rect = roll.getBoundingClientRect();
+  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
+  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
+  const tick = snapTick(xToTicks(x));
+  const pitch = clamp(ppm.lowest, ppm.highest-1, Math.floor(ppm.highest - (y/ppm.keyHeight)));
+  const hit = notes.slice().reverse().find(n=>{
+    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
+    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
+  });
+  if(hit){
+    selection = hit.id; updateProps();
+    const nx = ticksToX(hit.tickOn), nw = Math.max(4,ticksToX(hit.tickDur));
+    if(Math.abs(x-nx) < 8) dragging = {mode:'resizeL', id:hit.id, startX:x, orig:{...hit}};
+    else if(Math.abs(x - (nx+nw)) < 8) dragging = {mode:'resizeR', id:hit.id, startX:x, orig:{...hit}};
+    else if(e.altKey || e.shiftKey) dragging = {mode:'move', id:hit.id, startX:x, startY:y, orig:{...hit}};
+    else dragging = {mode:'select', id:hit.id};
+  } else {
+    // create new
+    const id = nextId++;
+    const note = { id, tickOn: tick, tickDur: PPQ, pitch, lyric: document.getElementById('lyricBox').value || 'あ', vel:100, PBS:0, PBW:'', PBY:'', pitchPoints:[] };
+    pushUndo(); notes.push(note); selection = id; updateProps();
+    dragging = {mode:'resizeR', id, startX:x, orig:{...note}};
+  }
+  draw();
+});
 
-window.addEventListener('pointerup', e=>{ try{ roll.releasePointerCapture?.(e.pointerId); }catch(_){} dragging=null; });
+roll.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const rect = roll.getBoundingClientRect();
+  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
+  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
+  const n = notes.find(z=>z.id === dragging.id); if(!n) return;
+  if(dragging.mode === 'move'){
+    const dx = x - dragging.startX, dy = y - dragging.startY;
+    const newTick = snapTick(dragging.orig.tickOn + xToTicks(dx));
+    const newPitch = clamp(ppm.lowest, ppm.highest-1, dragging.orig.pitch - Math.round(dy/ppm.keyHeight));
+    n.tickOn = Math.max(0, newTick); n.pitch = newPitch;
+  } else if(dragging.mode === 'resizeR'){
+    const newDur = Math.max(30, xToTicks(dragging.orig.tickDur + (x - dragging.startX)));
+    n.tickDur = newDur;
+  } else if(dragging.mode === 'resizeL'){
+    const newOn = Math.max(0, snapTick(dragging.orig.tickOn + xToTicks(x - dragging.startX)));
+    const d = dragging.orig.tickOn - newOn;
+    n.tickOn = newOn; n.tickDur = Math.max(30, dragging.orig.tickDur + d);
+  }
+  draw(); updateProps();
+});
 
-roll.addEventListener('dblclick', e=>{ const rect=roll.getBoundingClientRect(); const x=e.clientX-rect.left + roll.parentElement.scrollLeft; const y=e.clientY-rect.top + roll.parentElement.scrollTop; const hit = notes.slice().reverse().find(n=>{ const nx=ticksToX(n.tickOn), ny=pitchToY(n.pitch), nw=Math.max(4,ticksToX(n.tickDur)); return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight; }); if(hit){ const v=prompt('歌詞を入力', hit.lyric); if(v!==null){ hit.lyric=v; draw(); updateProps(); } } });
+window.addEventListener('pointerup', e => { try{ roll.releasePointerCapture?.(e.pointerId); }catch(_){} dragging = null; });
 
-roll.addEventListener('contextmenu', e=>{ e.preventDefault(); const rect=roll.getBoundingClientRect(); const x=e.clientX-rect.left + roll.parentElement.scrollLeft; const y=e.clientY-rect.top + roll.parentElement.scrollTop; const idx = notes.findIndex(n=>{ const nx=ticksToX(n.tickOn), ny=pitchToY(n.pitch), nw=Math.max(4,ticksToX(n.tickDur)); return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight; }); if(idx>=0){ if(confirm('ノートを削除しますか？')){ notes.splice(idx,1); selection=null; draw(); updateProps(); } } });
+// dblclick edit lyric
+roll.addEventListener('dblclick', e=>{
+  const rect = roll.getBoundingClientRect();
+  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
+  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
+  const hit = notes.slice().reverse().find(n=>{
+    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
+    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
+  });
+  if(hit){ const v = prompt('歌詞を入力', hit.lyric); if(v !== null){ pushUndo(); hit.lyric = v; draw(); updateProps(); } }
+});
+
+// right-click delete
+roll.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  const rect = roll.getBoundingClientRect();
+  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
+  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
+  const idx = notes.findIndex(n=>{
+    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
+    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
+  });
+  if(idx >= 0){ if(confirm('ノートを削除しますか？')){ pushUndo(); notes.splice(idx,1); selection = null; draw(); updateProps(); } }
+});
 
 function clamp(a,b,v){ return Math.max(a, Math.min(b, v)); }
 
-// =================== Properties panel binding ===================
-const propLyric = document.getElementById('propLyric'); const propPitch = document.getElementById('propPitch'); const propLen = document.getElementById('propLen'); const propVel = document.getElementById('propVel'); const propPBS = document.getElementById('propPBS'); const propPBW = document.getElementById('propPBW'); const propPBY = document.getElementById('propPBY');
-function updateProps(){ const sel = notes.find(n=>n.id===selection); document.getElementById('sel').innerText = selection||'None'; if(!sel){ propLyric.value=''; propPitch.value=''; propLen.value=''; propVel.value=100; propPBS.value=''; propPBW.value=''; propPBY.value=''; return; } propLyric.value = sel.lyric; propPitch.value = sel.pitch; propLen.value = sel.tickDur; propVel.value = sel.vel||100; propPBS.value = sel.PBS||0; propPBW.value = sel.PBW||''; propPBY.value = sel.PBY||''; }
-propLyric.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.lyric = propLyric.value; draw(); } });
-propPitch.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.pitch = parseInt(propPitch.value,10); draw(); } });
-propLen.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.tickDur = parseInt(propLen.value,10); resize(); draw(); } });
-propVel.addEventListener('input', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.vel = parseInt(propVel.value,10); draw(); } });
-propPBS.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.PBS = propPBS.value; } }); propPBW.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.PBW = propPBW.value; } }); propPBY.addEventListener('change', ()=>{ const s=notes.find(n=>n.id===selection); if(s){ s.PBY = propPBY.value; } });
+// ---------- Props panel binding ----------
+const propLyric = document.getElementById('propLyric'), propPitch = document.getElementById('propPitch'), propLen = document.getElementById('propLen'), propVel = document.getElementById('propVel'), propPBS = document.getElementById('propPBS'), propPBW = document.getElementById('propPBW'), propPBY = document.getElementById('propPBY');
 
-// pitch canvas (simple editable points)
-const pitchCanvas = document.getElementById('pitchCanvas'); const pctx = pitchCanvas.getContext('2d'); function drawPitch(){ pctx.clearRect(0,0,pitchCanvas.width,pitchCanvas.height); pctx.fillStyle='#fff'; pctx.fillRect(0,0,pitchCanvas.width,pitchCanvas.height); const sel = notes.find(n=>n.id===selection); if(!sel) return; const pts = sel.pitchPoints || []; pctx.strokeStyle='#2a6fb3'; pctx.beginPath(); for(let i=0;i<pts.length;i++){ const pt = pts[i]; const x = pt.x * pitchCanvas.width; const y = (1-pt.y) * pitchCanvas.height; if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y); } pctx.stroke(); for(const pt of pts){ const x=pt.x*pitchCanvas.width; const y=(1-pt.y)*pitchCanvas.height; pctx.fillStyle='#1f6fb3'; pctx.beginPath(); pctx.arc(x,y,4,0,Math.PI*2); pctx.fill(); } }
-pitchCanvas.addEventListener('mousedown', e=>{ const sel = notes.find(n=>n.id===selection); if(!sel) return; const r = pitchCanvas.getBoundingClientRect(); const x = (e.clientX - r.left)/pitchCanvas.width; const y = 1-((e.clientY - r.top)/pitchCanvas.height); sel.pitchPoints = sel.pitchPoints||[]; sel.pitchPoints.push({x: Math.max(0,Math.min(1,x)), y: Math.max(0,Math.min(1,y))}); drawPitch(); });
+function updateProps(){
+  const s = notes.find(n=>n.id===selection);
+  document.getElementById('sel').innerText = selection || 'None';
+  if(!s){ propLyric.value=''; propPitch.value=''; propLen.value=''; propVel.value=100; propPBS.value=''; propPBW.value=''; propPBY.value=''; drawPitch(); return; }
+  propLyric.value = s.lyric; propPitch.value = s.pitch; propLen.value = s.tickDur; propVel.value = s.vel || 100; propPBS.value = s.PBS || ''; propPBW.value = s.PBW || ''; propPBY.value = s.PBY || '';
+  drawPitch();
+}
 
-// =================== Voicebank parsing & default load ===================
-async function parseOto(text){ const map = new Map(); const lines = text.split(/\r?\n/); for(const line of lines){ if(!line.trim()) continue; const eq=line.indexOf('='); if(eq<0) continue; const left=line.slice(0,eq); const right=line.slice(eq+1); const comma=left.indexOf(','); if(comma<0) continue; const file=left.slice(0,comma).trim(); const alias=left.slice(comma+1).trim(); let vals = right.trim().split(/\s+/); if(vals.length<5) vals = right.split(',').map(s=>s.trim()); const nums = vals.map(s=>parseFloat(s)||0); map.set(alias, {file,alias,offset:nums[0]||0,consonant:nums[1]||0,cutoff:nums[2]||0,preutter:nums[3]||0,overlap:nums[4]||0}); } return map; }
+propLyric.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.lyric = propLyric.value; draw(); }});
+propPitch.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.pitch = parseInt(propPitch.value,10); draw(); }});
+propLen.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.tickDur = parseInt(propLen.value,10); resizeCanvas(); draw(); }});
+propVel.addEventListener('input', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.vel = parseInt(propVel.value,10); draw(); }});
+propPBS.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBS = propPBS.value; }});
+propPBW.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBW = propPBW.value; }});
+propPBY.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBY = propPBY.value; }});
 
-async function loadDefaultTeto(){ try{ const base='./teto/'; const otoTxt = await (await fetch(base+'oto.ini')).text(); const entries = await parseOto(otoTxt); const vbObj = {name:'teto', entries, wavCache:new Map(), dir:null}; await ensureAudio(); const names = new Set(Array.from(entries.values()).map(e=>e.file)); for(const fn of names){ try{ const res = await fetch(base+'wav/'+fn); if(!res.ok){ console.warn('not found',fn); continue; } const ab = await res.arrayBuffer(); const buf = await decodeAudioDataSafe(audioCtx, ab); vbObj.wavCache.set(fn.toLowerCase(), buf); }catch(e){ console.warn('wav load fail',fn,e); } } vb = vbObj; document.getElementById('vbName').innerText = vb.name + ' ('+vb.entries.size+' aliases)'; alert('デフォルト音源を読み込みました'); }catch(e){ console.error(e); alert('読み込み失敗'); } }
+// ---------- Pitch editor (simple) ----------
+const pitchCanvas = document.getElementById('pitchCanvas'), pctx = pitchCanvas.getContext('2d');
+function drawPitch(){
+  pctx.clearRect(0,0,pitchCanvas.width,pitchCanvas.height);
+  pctx.fillStyle='#fff'; pctx.fillRect(0,0,pitchCanvas.width,pitchCanvas.height);
+  const s = notes.find(n=>n.id===selection); if(!s) return;
+  const pts = s.pitchPoints || [];
+  pctx.strokeStyle = '#2a6fb3'; pctx.beginPath();
+  for(let i=0;i<pts.length;i++){
+    const pt=pts[i]; const x=pt.x*pitchCanvas.width, y=(1-pt.y)*pitchCanvas.height;
+    if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
+  }
+  pctx.stroke();
+  for(const pt of pts){
+    const x=pt.x*pitchCanvas.width, y=(1-pt.y)*pitchCanvas.height;
+    pctx.fillStyle='#1f6fb3'; pctx.beginPath(); pctx.arc(x,y,4,0,Math.PI*2); pctx.fill();
+  }
+}
+pitchCanvas.addEventListener('mousedown', e=>{
+  const s = notes.find(n=>n.id===selection); if(!s) return;
+  pushUndo();
+  const r = pitchCanvas.getBoundingClientRect();
+  const x = (e.clientX - r.left)/pitchCanvas.width; const y = 1 - ((e.clientY - r.top)/pitchCanvas.height);
+  s.pitchPoints = s.pitchPoints || []; s.pitchPoints.push({x: Math.max(0,Math.min(1,x)), y: Math.max(0,Math.min(1,y))}); drawPitch();
+});
 
+// ---------- Voicebank / oto.ini ----------
+async function parseOto(text){
+  const map = new Map();
+  const lines = text.split(/\r?\n/);
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const eq = line.indexOf('=');
+    if(eq<0) continue;
+    const left = line.slice(0,eq);
+    const right = line.slice(eq+1);
+    const comma = left.indexOf(',');
+    if(comma<0) continue;
+    const file = left.slice(0,comma).trim();
+    const alias = left.slice(comma+1).trim();
+    let vals = right.trim().split(/\s+/);
+    if(vals.length<5) vals = right.split(',').map(s=>s.trim());
+    const nums = vals.map(s=>parseFloat(s)||0);
+    map.set(alias, {file, alias, offset: nums[0]||0, consonant: nums[1]||0, cutoff: nums[2]||0, preutter: nums[3]||0, overlap: nums[4]||0});
+  }
+  return map;
+}
+
+async function loadDefaultTeto(){
+  try{
+    const base = './teto/';
+    const otoTxt = await (await fetch(base+'oto.ini')).text();
+    const entries = await parseOto(otoTxt);
+    const vbObj = { name:'teto', entries, wavCache: new Map() };
+    await ensureAudio();
+    const names = new Set(Array.from(entries.values()).map(e=>e.file));
+    for(const fn of names){
+      try{
+        const res = await fetch(base+'wav/'+fn);
+        if(!res.ok) { console.warn('not found', fn); continue; }
+        const ab = await res.arrayBuffer();
+        const buf = await decodeAudioDataSafe(audioCtx, ab);
+        vbObj.wavCache.set(fn.toLowerCase(), buf);
+      }catch(e){ console.warn('wav load fail', fn, e); }
+    }
+    vb = vbObj;
+    document.getElementById('vbName').innerText = vb.name + ' (' + vb.entries.size + ' aliases)';
+    alert('デフォルト音源を読み込みました');
+  }catch(e){ console.error(e); alert('読み込み失敗'); }
+}
 document.getElementById('loadDefault').addEventListener('click', loadDefaultTeto);
 
-// =================== Offline render / simple wavtool ===================
-async function renderOffline(){ await ensureAudio(); const totalTicks = getLengthTicks(); const secPerTick = 60 / BPM / PPQ; const duration = Math.ceil(totalTicks * secPerTick + 1); const offline = new OfflineAudioContext(1, Math.ceil(duration * audioCtx.sampleRate), audioCtx.sampleRate);
-  const notesSorted = notes.slice().sort((a,b)=>a.tickOn-b.tickOn);
-  for(const n of notesSorted){ const entry = vb?.entries.get(n.lyric) || vb?.entries.get(n.lyric.trim()); if(!entry){ // fallback
-      const osc = offline.createOscillator(); const g=offline.createGain(); const t0=n.tickOn*secPerTick; const t1=t0 + Math.max(0.05, n.tickDur * secPerTick); osc.type='sine'; osc.frequency.value = 440 * Math.pow(2,(n.pitch-69)/12); osc.connect(g); g.connect(offline.destination); g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(0.8,t0+0.01); g.gain.setValueAtTime(0.8,t1-0.02); g.gain.linearRampToValueAtTime(0,t1); osc.start(t0); osc.stop(t1); continue; }
-    const buf = vb.wavCache.get(entry.file.toLowerCase()); if(!buf) continue; const pre=(entry.preutter||0)/1000; const offsetSec=Math.max(0,(entry.offset||0)/1000); const tNote = n.tickOn*secPerTick; const startPlay = Math.max(0, tNote - pre); const src = offline.createBufferSource(); src.buffer = buf; // coarse pitch shift
-    const baseMidi = 60; const rate = Math.pow(2,(n.pitch - baseMidi)/12); src.playbackRate.value = rate; const g=offline.createGain(); const plannedStop = startPlay + Math.min(buf.duration - offsetSec, Math.max(0.05, n.tickDur * secPerTick + 0.05)); g.gain.setValueAtTime(0,startPlay); g.gain.linearRampToValueAtTime(1,startPlay+0.01); g.gain.setValueAtTime(1,plannedStop-0.02); g.gain.linearRampToValueAtTime(0,plannedStop); src.connect(g).connect(offline.destination); src.start(startPlay, offsetSec); src.stop(plannedStop);
+// ---------- Render (OfflineAudioContext) ----------
+async function renderOffline(){
+  await ensureAudio();
+  const totalTicks = getLengthTicks();
+  const secPerTick = 60 / BPM / PPQ;
+  const duration = Math.ceil(totalTicks * secPerTick + 1);
+  const offline = new OfflineAudioContext(1, Math.ceil(duration * audioCtx.sampleRate), audioCtx.sampleRate);
+  const sorted = notes.slice().sort((a,b)=>a.tickOn-b.tickOn);
+  for(const n of sorted){
+    const entry = vb?.entries.get(n.lyric) || vb?.entries.get((n.lyric||'').trim());
+    if(!entry){
+      const osc = offline.createOscillator(); const g = offline.createGain();
+      const t0 = n.tickOn * secPerTick, t1 = t0 + Math.max(0.05, n.tickDur * secPerTick);
+      osc.type='sine'; osc.frequency.value = 440 * Math.pow(2,(n.pitch-69)/12);
+      osc.connect(g); g.connect(offline.destination);
+      g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(0.8, t0+0.01);
+      g.gain.setValueAtTime(0.8, t1-0.02); g.gain.linearRampToValueAtTime(0, t1);
+      osc.start(t0); osc.stop(t1);
+      continue;
+    }
+    const buf = vb.wavCache.get(entry.file.toLowerCase());
+    if(!buf) continue;
+    const pre = (entry.preutter||0)/1000; const offsetSec = Math.max(0, (entry.offset||0)/1000);
+    const tNote = n.tickOn * secPerTick; const startPlay = Math.max(0, tNote - pre);
+    const src = offline.createBufferSource(); src.buffer = buf;
+    const baseMidi = 60; const rate = Math.pow(2, (n.pitch - baseMidi)/12);
+    src.playbackRate.value = rate;
+    const g = offline.createGain();
+    const plannedStop = startPlay + Math.min(buf.duration - offsetSec, Math.max(0.05, n.tickDur * secPerTick + 0.05));
+    g.gain.setValueAtTime(0, startPlay); g.gain.linearRampToValueAtTime(1, startPlay+0.01);
+    g.gain.setValueAtTime(1, plannedStop-0.02); g.gain.linearRampToValueAtTime(0, plannedStop);
+    src.connect(g).connect(offline.destination);
+    src.start(startPlay, offsetSec);
+    src.stop(plannedStop);
   }
-  return offline.startRendering(); }
+  return offline.startRendering();
+}
 
-document.getElementById('renderBtn').addEventListener('click', async ()=>{ try{ const buf = await renderOffline(); alert('レンダリング完了: ' + Math.round(buf.duration*1000) + ' ms'); }catch(e){ console.error(e); alert('レンダリング失敗'); } });
+document.getElementById('renderBtn').addEventListener('click', async ()=>{
+  try{ const buf = await renderOffline(); alert('レンダリング完了: ' + Math.round(buf.duration*1000) + ' ms'); } catch(e){ console.error(e); alert('レンダリング失敗'); }
+});
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
+  try{ const rendered = await renderOffline(); const wav = audioBufferToWav(rendered); const blob = new Blob([wav], {type:'audio/wav'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'render.wav'; a.click(); } catch(e){ console.error(e); alert('書き出し失敗'); }
+});
 
-document.getElementById('exportBtn').addEventListener('click', async ()=>{ try{ const rendered = await renderOffline(); const wav = audioBufferToWav(rendered); const blob = new Blob([wav], {type:'audio/wav'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'render.wav'; a.click(); }catch(e){ console.error(e); alert('書き出し失敗'); } });
+function audioBufferToWav(buffer){
+  const numOfChan = buffer.numberOfChannels; const length = buffer.length; const sampleRate = buffer.sampleRate;
+  const bytes = 44 + length * numOfChan * 2; const ab = new ArrayBuffer(bytes); const view = new DataView(ab);
+  let off = 0;
+  function writeStr(s){ for(let i=0;i<s.length;i++) view.setUint8(off++, s.charCodeAt(i)); }
+  writeStr('RIFF'); view.setUint32(off, 36 + length * numOfChan * 2, true); off+=4; writeStr('WAVE'); writeStr('fmt '); view.setUint32(off,16,true); off+=4; view.setUint16(off,1,true); off+=2;
+  view.setUint16(off,numOfChan,true); off+=2; view.setUint32(off,sampleRate,true); off+=4; view.setUint32(off,sampleRate*numOfChan*2,true); off+=4; view.setUint16(off,numOfChan*2,true); off+=2; view.setUint16(off,16,true); off+=2;
+  writeStr('data'); view.setUint32(off, length * numOfChan * 2, true); off+=4;
+  for(let i=0;i<length;i++){
+    for(let ch=0; ch<numOfChan; ch++){
+      let v = buffer.getChannelData(ch)[i]; v = Math.max(-1, Math.min(1, v));
+      view.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7FFF, true); off += 2;
+    }
+  }
+  return ab;
+}
 
-function audioBufferToWav(buffer){ const numOfChan = buffer.numberOfChannels; const length = buffer.length; const sampleRate = buffer.sampleRate; const bytes = 44 + length * numOfChan * 2; const ab = new ArrayBuffer(bytes); const view = new DataView(ab); let off = 0; function writeStr(s){ for(let i=0;i<s.length;i++) view.setUint8(off++, s.charCodeAt(i)); }
-  writeStr('RIFF'); view.setUint32(off, 36 + length * numOfChan * 2, true); off+=4; writeStr('WAVE'); writeStr('fmt '); view.setUint32(off,16,true); off+=4; view.setUint16(off,1,true); off+=2; view.setUint16(off,numOfChan,true); off+=2; view.setUint32(off,sampleRate,true); off+=4; view.setUint32(off,sampleRate*numOfChan*2,true); off+=4; view.setUint16(off,numOfChan*2,true); off+=2; view.setUint16(off,16,true); off+=2; writeStr('data'); view.setUint32(off, length * numOfChan * 2, true); off+=4;
-  for(let i=0;i<length;i++){ for(let ch=0;ch<numOfChan;ch++){ let v = buffer.getChannelData(ch)[i]; v = Math.max(-1, Math.min(1, v)); view.setInt16(off, v<0? v*0x8000 : v*0x7FFF, true); off+=2; } }
-  return ab; }
+// ---------- Save / Load / UST ----------
+document.getElementById('openBtn').addEventListener('click', ()=>document.getElementById('fileOpen').click());
+document.getElementById('fileOpen').addEventListener('change', async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const txt = await f.text();
+  try{
+    const pj = JSON.parse(txt);
+    if(pj.notes){ notes = pj.notes; PPQ = pj.ppq || PPQ; BPM = pj.bpm || BPM; updateProps(); resizeCanvas(); draw(); return; }
+  }catch(_){}
+  // very basic UST parsing (simple)
+  const lines = txt.split(/\r?\n/); notes = []; let tick=0;
+  for(const ln of lines){
+    const m = /^NoteNum=(\d+)/.exec(ln); const ml = /^Length=(\d+)/.exec(ln); const my = /^Lyric=(.*)/.exec(ln);
+    if(m && ml && my){ const pitch = parseInt(m[1],10); const len = parseInt(ml[1],10); const lyric = my[1].trim(); notes.push({ id: nextId++, tickOn: tick, tickDur: len, pitch, lyric, vel:100, PBS:0, PBW:'', PBY:'', pitchPoints:[] }); tick += len; }
+  }
+  resizeCanvas(); draw();
+});
 
-// =================== Utility / init ===================
-function updateStatus(){ document.getElementById('tick').innerText = selection? (notes.find(n=>n.id===selection)?.tickOn||0):0; document.getElementById('len').innerText = selection? (notes.find(n=>n.id===selection)?.tickDur||0):0; }
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  const pj = { version:1, ppq:PPQ, bpm:BPM, notes };
+  const blob = new Blob([JSON.stringify(pj,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'project.json'; a.click();
+});
 
-// helpers
-function audioLog(s){ console.log('[audio]', s); }
+// ---------- Undo / Redo ----------
+function pushUndo(){ undoStack.push(JSON.stringify(notes)); if(undoStack.length>200) undoStack.shift(); redoStack.length = 0; }
+document.getElementById('undoBtn').addEventListener('click', ()=>{ if(undoStack.length===0) return; redoStack.push(JSON.stringify(notes)); notes = JSON.parse(undoStack.pop()); selection = null; draw(); updateProps(); });
+document.getElementById('redoBtn').addEventListener('click', ()=>{ if(redoStack.length===0) return; undoStack.push(JSON.stringify(notes)); notes = JSON.parse(redoStack.pop()); selection = null; draw(); updateProps(); });
 
-// init
-renderKeys(); resize(); draw(); updateStatus();
+// ---------- Utility ----------
+function updateStatus(){ document.getElementById('tick').innerText = selection? (notes.find(n=>n.id===selection)?.tickOn || 0) : 0; document.getElementById('len').innerText = selection? (notes.find(n=>n.id===selection)?.tickDur || 0) : 0; }
+function clamp(a,b,v){ return Math.max(a, Math.min(b, v)); }
 
-// zoom
-document.getElementById('mZoomIn')?.addEventListener('click', ()=>{ ppm.pxPerTick*=1.25; resize(); draw(); });
-document.getElementById('mZoomOut')?.addEventListener('click', ()=>{ ppm.pxPerTick/=1.25; resize(); draw(); });
+// ---------- init ----------
+renderKeys(); resizeCanvas(); draw(); updateProps();
 
-// tempo
-document.getElementById('tempo').addEventListener('change', (e)=>{ BPM = parseFloat(e.target.value)||120; document.getElementById('bpmDisplay').innerText = BPM; });
+// ---------- iOS/resume on play ----------
+document.getElementById('playBtn').addEventListener('click', async ()=>{
+  const ac = await ensureAudio();
+  if(ac.state === 'suspended'){ try{ await ac.resume(); }catch(_){ } }
+  // render and play rendered buffer
+  try{
+    const rendered = await renderOffline();
+    const src = ac.createBufferSource();
+    src.buffer = rendered; src.connect(ac.destination); src.start();
+    src.onended = ()=>console.log('playback ended');
+  }catch(e){ console.error(e); alert('再生エラー'); }
+});
+
+// loadVB: attempt to read directory input (limited by browser)
+document.getElementById('loadVB').addEventListener('click', ()=>document.getElementById('vbPicker').click());
+document.getElementById('vbPicker').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  const otoFile = files.find(f=>/oto\.ini$/i.test(f.name));
+  if(!otoFile){ alert('oto.ini が見つかりません'); return; }
+  const basePath = otoFile.webkitRelativePath ? otoFile.webkitRelativePath.replace(/[^/]+$/,'') : '';
+  const otoText = await otoFile.text();
+  const entries = await parseOto(otoText);
+  const vbObj = { name: basePath || 'local', entries, wavCache: new Map() };
+  await ensureAudio();
+  for(const f of files){
+    if(/\.(wav|mp3|ogg)$/i.test(f.name)){
+      try{ const ab = await f.arrayBuffer(); const buf = await decodeAudioDataSafe(audioCtx, ab); vbObj.wavCache.set(f.name.toLowerCase(), buf); }catch(e){ console.warn('decode fail', f.name, e); }
+    }
+  }
+  vb = vbObj; document.getElementById('vbName').innerText = vb.name + ' ('+vb.entries.size+' aliases)';
+  alert('Voicebank 読み込み完了');
+});
 
 </script>
 </body>
