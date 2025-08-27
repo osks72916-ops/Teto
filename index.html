@@ -1,549 +1,844 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web UTAU Replica</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 20px;
-        }
-
-        #piano-roll-container {
-            position: relative;
-            width: 90%;
-            max-width: 1200px;
-            height: 400px;
-            border: 1px solid #ccc;
-            background-color: #fff;
-            overflow: auto;
-            cursor: crosshair;
-        }
-
-        .piano-grid-line {
-            position: absolute;
-            background-color: #e0e0e0;
-        }
-
-        .piano-grid-line.bar {
-            background-color: #a0a0a0;
-        }
-
-        .note {
-            position: absolute;
-            box-sizing: border-box;
-            background-color: #4CAF50;
-            border: 1px solid #388E3C;
-            opacity: 0.8;
-            cursor: pointer;
-            z-index: 10;
-        }
-
-        .note.selected {
-            background-color: #FFC107;
-            border-color: #FF8F00;
-            box-shadow: 0 0 5px rgba(255, 143, 0, 0.5);
-        }
-
-        .note-lyrics {
-            color: #fff;
-            font-size: 12px;
-            padding: 2px;
-            position: absolute;
-            bottom: -20px;
-            left: 0;
-            white-space: nowrap;
-        }
-        
-        .handle {
-            position: absolute;
-            width: 8px;
-            height: 100%;
-            cursor: ew-resize;
-            background-color: #ffffff33;
-            z-index: 20;
-        }
-
-        .handle.left { left: -4px; }
-        .handle.right { right: -4px; }
-
-        #controls {
-            margin-top: 20px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        #editor-panel {
-            margin-top: 20px;
-            width: 90%;
-            max-width: 1200px;
-            border: 1px solid #ccc;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .editor-section {
-            margin-bottom: 15px;
-        }
-
-        .editor-section h3 {
-            margin: 0 0 10px 0;
-        }
-
-        .editor-canvas {
-            width: 100%;
-            height: 150px;
-            border: 1px solid #ccc;
-            cursor: crosshair;
-            background-color: #fafafa;
-        }
-
-        .vibrato-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .vibrato-controls label {
-            width: 60px;
-        }
-
-        input[type="range"] {
-            flex-grow: 1;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini UTAU-like Editor (Web)</title>
+<style>
+  :root{
+    --bg:#1f1f24;
+    --panel:#2a2a31;
+    --panel2:#34343d;
+    --text:#e8e8ee;
+    --sub:#b8b8c8;
+    --acc:#4da3ff;
+    --acc2:#9bdb4b;
+    --grid:#3a3a45;
+    --grid2:#2d2d36;
+    --sel:#ffcc4d88;
+    --note:#6bc1ff;
+    --noteEdge:#1b8ad9;
+    --noteText:#0b2033;
+    --handle:#ffd54d;
+    --play:#ff5f5f;
+  }
+  *{box-sizing:border-box;user-select:none}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial;
+    display:grid;grid-template-rows:auto auto 1fr;gap:8px;height:100dvh;overflow:hidden;
+  }
+  header, .toolbar, .statusbar{
+    background:var(--panel);padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #0008;
+  }
+  header{gap:16px}
+  header .title{font-weight:700;letter-spacing:.5px}
+  .toolbar{background:var(--panel2)}
+  .toolbar .group{display:flex;gap:6px;align-items:center;border-right:1px solid #0006;padding-right:8px;margin-right:8px}
+  .toolbar input[type="number"], .toolbar select { background:#222733;color:var(--text);border:1px solid #0008;padding:4px;border-radius:6px;width:80px}
+  .toolbar button, .side button{
+    background:#2b3a55;color:var(--text);border:1px solid #0008;border-radius:8px;padding:6px 10px;cursor:pointer;
+  }
+  .toolbar button.active{outline:2px solid var(--acc)}
+  .toolbar button:disabled{opacity:.5;cursor:not-allowed}
+  .wrap{
+    display:grid;grid-template-columns:1fr 280px;height:100%;gap:8px;padding:0 8px 8px 8px;
+  }
+  .editor{
+    background:var(--panel);display:grid;grid-template-rows:28px 1fr 24px;border:1px solid #0008;border-radius:10px;overflow:hidden;
+  }
+  .ruler{background:var(--panel2);position:relative}
+  .keys{width:72px;background:linear-gradient(#2b2f38,#262a33);border-right:1px solid #0008;position:relative}
+  .grid{position:relative;overflow:auto;background:var(--grid2)}
+  .pianoroll{display:grid;grid-template-columns:72px 1fr}
+  canvas{image-rendering:pixelated}
+  .side{
+    background:var(--panel);border:1px solid #0008;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:10px;overflow:auto;
+  }
+  .side h3{margin:6px 0 4px 0;font-size:13px;color:var(--sub)}
+  .side label{display:flex;justify-content:space-between;gap:6px;align-items:center;margin:4px 0}
+  .side input[type="text"], .side input[type="number"], .side select, .side textarea{
+    width:100%;background:#222733;color:var(--text);border:1px solid #0008;border-radius:6px;padding:6px;
+  }
+  .statusbar{background:#202330;border-top:1px solid #0008;gap:16px}
+  .badge{background:#0005;border:1px solid #0008;padding:2px 8px;border-radius:999px;color:#cfd6ff}
+  .mini{font-size:12px;color:#b6bed3}
+  .hint{color:#b6bed3}
+  .link{color:var(--acc)}
+  .flex{display:flex;gap:8px;align-items:center}
+  .spacer{flex:1}
+</style>
 </head>
 <body>
+  <header>
+    <div class="title">UTAU-like Web Editor <span class="badge">alpha</span></div>
+    <div class="hint">左ドラッグでノート作成 / ダブルクリックで歌詞編集 / Pitchモードでピッチカーブ ✍️</div>
+    <div class="spacer"></div>
+    <button id="exportWavBtn">WAV書き出し</button>
+    <button id="saveBtn">保存</button>
+    <button id="loadBtn">読み込み</button><input id="loadInput" type="file" accept="application/json,audio/wav" style="display:none">
+  </header>
 
-    <header>
-        <h1>簡易UTAU Web版</h1>
-    </header>
+  <div class="toolbar">
+    <div class="group">
+      <button data-tool="draw" class="active">Draw</button>
+      <button data-tool="select">Select</button>
+      <button data-tool="pitch">Pitch</button>
+    </div>
+    <div class="group">
+      <label>BPM <input id="bpm" type="number" min="40" max="300" step="1" value="120"></label>
+      <label>Quantize
+        <select id="quant">
+          <option value="1">1/1</option>
+          <option value="2">1/2</option>
+          <option value="4">1/4</option>
+          <option value="8" selected>1/8</option>
+          <option value="12">1/12</option>
+          <option value="16">1/16</option>
+          <option value="24">1/24</option>
+          <option value="32">1/32</option>
+        </select>
+      </label>
+      <label>Snap <input id="snap" type="checkbox" checked></label>
+      <label>Zoom <input id="zoom" type="number" value="1" min="0.5" max="3" step="0.1"></label>
+    </div>
+    <div class="group">
+      <button id="playBtn">▶ Play</button>
+      <button id="stopBtn">■ Stop</button>
+      <span class="mini">再生位置: <span id="posLabel">0.0</span> 小節</span>
+    </div>
+    <div class="group">
+      <button id="delBtn">Delete</button>
+      <button id="dupBtn">Duplicate</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <span class="mini">鍵盤範囲=C2〜C6</span>
+    </div>
+  </div>
 
-    <main>
-        <div id="piano-roll-container"></div>
-        
-        <div id="controls">
-            <button id="play-btn">再生</button>
-            <button id="stop-btn">停止</button>
+  <div class="wrap">
+    <div class="editor">
+      <div class="ruler"><canvas id="ruler" width="800" height="28"></canvas></div>
+      <div class="pianoroll">
+        <div class="keys"><canvas id="keys" width="72" height="800"></canvas></div>
+        <div class="grid" id="gridScroll">
+          <canvas id="grid" width="2000" height="1200"></canvas>
         </div>
-
-        <div id="editor-panel" class="hidden">
-            <h2>ノート編集</h2>
-            <div class="editor-section">
-                <h3>ピッチカーブ</h3>
-                <canvas id="pitch-editor" class="editor-canvas"></canvas>
-            </div>
-            <div class="editor-section">
-                <h3>エンベロープ</h3>
-                <canvas id="envelope-editor" class="editor-canvas"></canvas>
-            </div>
-            <div class="editor-section">
-                <h3>ビブラート</h3>
-                <div class="vibrato-controls">
-                    <label for="vibrato-depth">深さ:</label>
-                    <input type="range" id="vibrato-depth" min="0" max="50" value="0">
-                    <label for="vibrato-rate">速さ:</label>
-                    <input type="range" id="vibrato-rate" min="0" max="10" step="0.1" value="0">
-                </div>
-            </div>
+      </div>
+      <div class="statusbar">
+        <span>選択ノート: <span id="selCount">0</span></span>
+        <span>モード: <span id="modeLabel">Draw</span></span>
+        <span>CPU: <span id="cpuLabel">idle</span></span>
+        <div class="spacer"></div>
+        <span class="mini">簡易合成(母音フォルマント) – 本家UTAUの音質とは異なります ✔️</span>
+      </div>
+    </div>
+    <aside class="side">
+      <h3>選択ノートの編集</h3>
+      <label>歌詞 <input id="lyricInput" type="text" placeholder="a / i / u / e / o / n / la 等"></label>
+      <label>Velocity <input id="velInput" type="number" min="1" max="127" value="100"></label>
+      <div class="flex" style="gap:10px">
+        <div style="flex:1">
+          <h3>Vibrato</h3>
+          <label>深さ(cent) <input id="vibDepth" type="number" value="30" min="0" max="200"></label>
+          <label>速さ(Hz) <input id="vibRate" type="number" value="5.5" min="0" max="12" step="0.1"></label>
         </div>
-    </main>
-    
-    <script>
-        // 設定
-        const NOTE_WIDTH = 50;
-        const NOTE_HEIGHT = 20;
-        const PITCH_RANGE = 24;
-        const PITCH_OFFSET = 60;
-        const TEMPO = 120;
-        const T_PER_BEAT = 60 / TEMPO;
+        <div style="flex:1">
+          <h3>Envelope</h3>
+          <label>Attack <input id="envA" type="number" value="0.01" min="0" step="0.01"></label>
+          <label>Decay <input id="envD" type="number" value="0.06" min="0" step="0.01"></label>
+          <label>Sustain <input id="envS" type="number" value="0.8" min="0" max="1" step="0.05"></label>
+          <label>Release <input id="envR" type="number" value="0.08" min="0" step="0.01"></label>
+        </div>
+      </div>
+      <h3>プロジェクト</h3>
+      <button id="selectAllBtn">全選択</button>
+      <button id="clearBtn">全てクリア</button>
+      <label>JSON <textarea id="jsonArea" rows="6" spellcheck="false" placeholder="Save/Load用JSONが表示されます"></textarea></label>
+      <button id="toJsonBtn">JSONへ</button>
+      <button id="fromJsonBtn">JSONから読み込み</button>
+      <h3>ヘルプ 🤔</h3>
+      <ul style="margin:0 0 0 16px;padding:0">
+        <li>Pitchモードでノートをクリック→ポイント追加。ドラッグでカーブを編集</li>
+        <li>Deleteで削除 / Duplicateで複製</li>
+        <li>量子化/スナップでグリッドに吸着</li>
+        <li>WAV書き出しは簡易合成(OfflineAudioContext)</li>
+      </ul>
+    </aside>
+  </div>
 
-        // グローバル変数
-        let audioContext;
-        let masterGain;
-        const audioBuffers = {};
-        const notes = [];
-        const phonemes = ['a', 'i', 'u', 'e', 'o'];
-        
-        let isPlaying = false;
-        let selectedNote = null;
-        let isDragging = false;
-        let dragType = null;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let originalNoteData = {};
+<script>
+/**
+ * Mini UTAU-like Editor
+ * - Piano roll editor with notes
+ * - Lyrics per note
+ * - Pitch bend curve (points within note)
+ * - Vibrato per note
+ * - ADSR envelope
+ * - Playback + WAV export (simple vowel/formant synth)
+ * (c) demo - free to use
+ */
 
-        // UI要素
-        const pianoRollContainer = document.getElementById('piano-roll-container');
-        const playBtn = document.getElementById('play-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const editorPanel = document.getElementById('editor-panel');
-        const pitchEditorCanvas = document.getElementById('pitch-editor');
-        const envelopeEditorCanvas = document.getElementById('envelope-editor');
-        const vibratoDepthInput = document.getElementById('vibrato-depth');
-        const vibratoRateInput = document.getElementById('vibrato-rate');
-        
-        const pitchEditorCtx = pitchEditorCanvas.getContext('2d');
-        const envelopeEditorCtx = envelopeEditorCanvas.getContext('2d');
+const state = {
+  bpm: 120,
+  ppq: 480,               // internal PPQ for math (not exposed)
+  beats: 64,              // horizontal length in beats
+  tool: 'draw',           // draw | select | pitch
+  zoom: 1,
+  quant: 8,               // denominator: 1/quant note
+  snap: true,
+  notes: [],              // {id,start(dbeat),dur(dbeat),pitch(midi),lyric,vel,env:{a,d,s,r},vib:{depthCent,rateHz},bendPoints:[{t(0..1),cent(-1200..+1200)}]}
+  selection: new Set(),
+  nextId: 1,
+  playing: false,
+  playBeat: 0,
+  audio: null,
+};
 
-        // ====== 初期化 ======
-        async function loadAudio() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
+const $ = sel => document.querySelector(sel);
+const ruler = $('#ruler'), keys = $('#keys'), grid = $('#grid');
+const gridScroll = $('#gridScroll');
+const ctxR = ruler.getContext('2d');
+const ctxK = keys.getContext('2d');
+const ctxG = grid.getContext('2d');
 
-            for (const phoneme of phonemes) {
-                try {
-                    const response = await fetch(`audio/${phoneme}.wav`);
-                    const arrayBuffer = await response.arrayBuffer();
-                    audioBuffers[phoneme] = await audioContext.decodeAudioData(arrayBuffer);
-                    console.log(`Loaded ${phoneme}.wav`);
-                } catch (error) {
-                    console.error(`Failed to load ${phoneme}.wav`, error);
-                }
-            }
-        }
+const piano = {
+  minMidi: 36, // C2
+  maxMidi: 84, // C6
+  keyH: 20,
+  beatW: 64,   // scaled by zoom
+};
 
-        function drawGrid() {
-            pianoRollContainer.innerHTML = '';
-            const numBeats = Math.max(32, Math.ceil(pianoRollContainer.scrollWidth / NOTE_WIDTH / 4) * 4);
-            const containerHeight = PITCH_RANGE * NOTE_HEIGHT;
-            pianoRollContainer.style.height = `${containerHeight}px`;
+function setCanvasSize() {
+  piano.beatW = 64 * state.zoom;
+  const rows = piano.maxMidi - piano.minMidi + 1;
+  const height = rows * piano.keyH;
+  const width = Math.ceil(state.beats * piano.beatW);
+  grid.width = width; grid.height = height;
+  keys.height = height;
+  ruler.width = width;
+}
+setCanvasSize();
 
-            for (let i = 0; i < numBeats * 4; i++) {
-                const line = document.createElement('div');
-                line.className = 'piano-grid-line';
-                line.style.width = '1px';
-                line.style.height = '100%';
-                line.style.left = `${i * NOTE_WIDTH / 4}px`;
-                if (i % 4 === 0) {
-                    line.classList.add('bar');
-                }
-                pianoRollContainer.appendChild(line);
-            }
-            for (let i = 0; i < PITCH_RANGE; i++) {
-                const line = document.createElement('div');
-                line.className = 'piano-grid-line';
-                line.style.height = '1px';
-                line.style.width = '100%';
-                line.style.top = `${i * NOTE_HEIGHT}px`;
-                pianoRollContainer.appendChild(line);
-            }
-        }
+/* UI bindings */
+$('#bpm').addEventListener('input', e => { state.bpm = clamp(+e.target.value,40,300); drawRuler(); });
+$('#quant').addEventListener('input', e => { state.quant = +e.target.value; drawAll(); });
+$('#snap').addEventListener('change', e => { state.snap = e.target.checked; });
+$('#zoom').addEventListener('input', e => { state.zoom = clamp(+e.target.value,0.5,3); setCanvasSize(); drawAll(); });
 
-        function drawNotes() {
-            document.querySelectorAll('.note').forEach(el => el.remove());
-            notes.forEach(note => {
-                const noteEl = document.createElement('div');
-                noteEl.className = `note ${note === selectedNote ? 'selected' : ''}`;
-                noteEl.dataset.noteId = note.id;
-                noteEl.style.left = `${note.time * NOTE_WIDTH}px`;
-                noteEl.style.top = `${(PITCH_RANGE - 1 - (note.pitch - PITCH_OFFSET)) * NOTE_HEIGHT}px`;
-                noteEl.style.width = `${note.duration * NOTE_WIDTH}px`;
-                noteEl.style.height = `${NOTE_HEIGHT}px`;
+document.querySelectorAll('[data-tool]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-tool]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tool = btn.dataset.tool;
+    $('#modeLabel').textContent = btn.textContent;
+  });
+});
 
-                const lyricsEl = document.createElement('div');
-                lyricsEl.className = 'note-lyrics';
-                lyricsEl.textContent = note.phoneme;
-                noteEl.appendChild(lyricsEl);
-                
-                // サイズ変更ハンドル
-                const rightHandle = document.createElement('div');
-                rightHandle.className = 'handle right';
-                noteEl.appendChild(rightHandle);
+$('#playBtn').addEventListener('click', ()=>play());
+$('#stopBtn').addEventListener('click', ()=>stop());
+$('#delBtn').addEventListener('click', ()=>deleteSelection());
+$('#dupBtn').addEventListener('click', ()=>duplicateSelection());
+$('#selectAllBtn').addEventListener('click', ()=>{ state.selection = new Set(state.notes.map(n=>n.id)); drawAll(); updateSelUI(); });
+$('#clearBtn').addEventListener('click', ()=>{ state.notes=[]; state.selection.clear(); drawAll(); updateSelUI(); });
 
-                pianoRollContainer.appendChild(noteEl);
-            });
-        }
+$('#lyricInput').addEventListener('input', e=>editSelection(n=>n.lyric = e.target.value));
+$('#velInput').addEventListener('input', e=>editSelection(n=>n.vel = clamp(+e.target.value,1,127)));
+$('#vibDepth').addEventListener('input', e=>editSelection(n=>n.vib.depthCent = clamp(+e.target.value,0,300)));
+$('#vibRate').addEventListener('input', e=>editSelection(n=>n.vib.rateHz = clamp(+e.target.value,0,12)));
+$('#envA').addEventListener('input', e=>editSelection(n=>n.env.a = max0(+e.target.value)));
+$('#envD').addEventListener('input', e=>editSelection(n=>n.env.d = max0(+e.target.value)));
+$('#envS').addEventListener('input', e=>editSelection(n=>n.env.s = clamp(+e.target.value,0,1)));
+$('#envR').addEventListener('input', e=>editSelection(n=>n.env.r = max0(+e.target.value)));
 
-        function refreshUI() {
-            drawGrid();
-            drawNotes();
-            if (selectedNote) {
-                showEditorPanel();
-            } else {
-                hideEditorPanel();
-            }
-        }
-        
-        // ====== ノートの操作 ======
-        pianoRollContainer.addEventListener('mousedown', (e) => {
-            if (isPlaying) return;
-            const noteEl = e.target.closest('.note');
+$('#exportWavBtn').addEventListener('click', ()=>exportWav());
+$('#saveBtn').addEventListener('click', ()=>downloadJSON());
+$('#loadBtn').addEventListener('click', ()=>$('#loadInput').click());
+$('#loadInput').addEventListener('change', onLoadFile);
 
-            if (noteEl) {
-                const noteId = noteEl.dataset.noteId;
-                selectedNote = notes.find(n => n.id === noteId);
-                updateSelection();
-                showEditorPanel();
-                
-                isDragging = true;
-                dragStartX = e.clientX;
-                dragStartY = e.clientY;
-                originalNoteData = {
-                    time: selectedNote.time,
-                    pitch: selectedNote.pitch,
-                    duration: selectedNote.duration
-                };
+$('#toJsonBtn').addEventListener('click', ()=>$('#jsonArea').value = JSON.stringify(serializeProject(),null,2));
+$('#fromJsonBtn').addEventListener('click', ()=>{
+  try{
+    const obj = JSON.parse($('#jsonArea').value);
+    deserializeProject(obj);
+  }catch(e){ alert('JSONが不正です'); }
+});
 
-                if (e.target.classList.contains('handle')) {
-                    dragType = 'resize';
-                } else {
-                    dragType = 'move';
-                }
-            } else {
-                selectedNote = null;
-                updateSelection();
-                hideEditorPanel();
-                
-                isDragging = true;
-                dragType = 'create';
-                dragStartX = e.clientX + pianoRollContainer.scrollLeft;
-                dragStartY = e.clientY + pianoRollContainer.scrollTop;
-            }
-        });
+/* Drawing helpers */
+function drawAll(){ drawRuler(); drawKeys(); drawGrid(); }
+function drawRuler(){
+  const h = ruler.height, w = ruler.width;
+  ctxR.clearRect(0,0,w,h);
+  ctxR.fillStyle = '#0006';
+  ctxR.fillRect(0,0,w,h);
+  const beats = state.beats;
+  ctxR.fillStyle = '#d2d8ff';
+  ctxR.textAlign='center'; ctxR.textBaseline='middle'; ctxR.font='12px monospace';
+  for (let b=0; b<=beats; b++){
+    const x = b * piano.beatW + .5;
+    const isBar = (b%4===0);
+    ctxR.strokeStyle = isBar ? '#ffffff55' : '#ffffff22';
+    ctxR.beginPath(); ctxR.moveTo(x,0); ctxR.lineTo(x,h); ctxR.stroke();
+    if(isBar) ctxR.fillText(`${(b/4)+1|0}`, x+12, h/2);
+  }
+  // playhead
+  if (state.playing){
+    const x = state.playBeat * piano.beatW;
+    ctxR.strokeStyle= 'var(--play)';
+    ctxR.beginPath(); ctxR.moveTo(x+.5,0); ctxR.lineTo(x+.5,h); ctxR.stroke();
+  }
+}
+function drawKeys(){
+  const rows = piano.maxMidi - piano.minMidi + 1;
+  ctxK.clearRect(0,0,keys.width,keys.height);
+  for (let i=0;i<rows;i++){
+    const midi = piano.maxMidi - i;
+    const y = i * piano.keyH;
+    const isBlack = [1,3,6,8,10].includes(midi%12);
+    ctxK.fillStyle = isBlack ? '#161923' : '#212633';
+    ctxK.fillRect(0,y,72,piano.keyH-1);
+    ctxK.fillStyle = isBlack ? '#8791b1' : '#cdd5f9';
+    if ([0,2,4,5,7,9,11].includes(midi%12)){
+      const name = midiToNoteName(midi);
+      ctxK.fillText(name, 6, y + piano.keyH - 6);
+    }
+  }
+}
+function drawGrid(){
+  const w = grid.width, h = grid.height;
+  ctxG.fillStyle = '#22262f';
+  ctxG.fillRect(0,0,w,h);
 
-        pianoRollContainer.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
+  // horizontal keys stripes
+  for (let i=0;i<=h;i+=piano.keyH){
+    ctxG.strokeStyle = '#0007';
+    ctxG.beginPath(); ctxG.moveTo(0,i+.5); ctxG.lineTo(w,i+.5); ctxG.stroke();
+  }
+  // vertical beat lines
+  for (let b=0;b<=state.beats;b++){
+    const x = b * piano.beatW + .5;
+    ctxG.strokeStyle = (b%4===0) ? '#ffffff22' : '#ffffff10';
+    ctxG.beginPath(); ctxG.moveTo(x,0); ctxG.lineTo(x,h); ctxG.stroke();
+    // sub grid
+    const div = state.quant;
+    const sub = piano.beatW / div;
+    ctxG.strokeStyle = '#ffffff08';
+    for (let i=1;i<div;i++){
+      const xs = x + i*sub;
+      ctxG.beginPath(); ctxG.moveTo(xs,0); ctxG.lineTo(xs,h); ctxG.stroke();
+    }
+  }
 
-            const currentX = e.clientX;
-            const currentY = e.clientY;
+  // notes
+  for (const n of state.notes){
+    const {x,y,w:ww} = noteRect(n);
+    // body
+    ctxG.fillStyle = state.selection.has(n.id) ? '#72d5ff' : 'var(--note)';
+    roundRect(ctxG, x+1, y+2, ww-2, piano.keyH-4, 6);
+    ctxG.fill();
+    // edge
+    ctxG.strokeStyle = 'var(--noteEdge)';
+    ctxG.stroke();
+    // lyric
+    ctxG.fillStyle = 'var(--noteText)'; ctxG.font='12px sans-serif';
+    ctxG.fillText(n.lyric||'', x+6, y + piano.keyH/2 + 4);
+    // resize handles
+    ctxG.fillStyle = 'var(--handle)';
+    ctxG.fillRect(x-2, y+4, 4, piano.keyH-8);
+    ctxG.fillRect(x+ww-2, y+4, 4, piano.keyH-8);
 
-            if (dragType === 'move' && selectedNote) {
-                const dx = currentX - dragStartX;
-                const dy = currentY - dragStartY;
-                const newTime = Math.round(originalNoteData.time + dx / NOTE_WIDTH);
-                const newPitch = Math.round(originalNoteData.pitch - dy / NOTE_HEIGHT);
-                
-                selectedNote.time = Math.max(0, newTime);
-                selectedNote.pitch = Math.min(PITCH_RANGE - 1 + PITCH_OFFSET, Math.max(PITCH_OFFSET, newPitch));
-                refreshUI();
-            } else if (dragType === 'resize' && selectedNote) {
-                const dx = currentX - dragStartX;
-                const newDuration = Math.round(originalNoteData.duration + dx / NOTE_WIDTH);
-                selectedNote.duration = Math.max(0.5, newDuration);
-                refreshUI();
-            }
-        });
+    // pitch curve preview
+    if (n.bendPoints && n.bendPoints.length){
+      ctxG.strokeStyle = '#ffe48a';
+      ctxG.beginPath();
+      for (let i=0;i<n.bendPoints.length;i++){
+        const p = n.bendPoints[i];
+        const px = x + p.t * ww;
+        const py = y + (piano.keyH/2) - (p.cent/100) * (piano.keyH/2) / 6; // 600cent = 3半音を高さに
+        if (i===0) ctxG.moveTo(px,py); else ctxG.lineTo(px,py);
+      }
+      ctxG.stroke();
+    }
+  }
 
-        pianoRollContainer.addEventListener('mouseup', () => {
-            if (isDragging && dragType === 'create') {
-                const x = dragStartX;
-                const y = dragStartY;
-                const time = Math.floor(x / NOTE_WIDTH);
-                const pitchIndex = Math.floor(y / NOTE_HEIGHT);
-                const pitch = PITCH_RANGE - 1 - pitchIndex + PITCH_OFFSET;
+  // playhead
+  if (state.playing){
+    const x = state.playBeat * piano.beatW + .5;
+    ctxG.strokeStyle = 'var(--play)';
+    ctxG.beginPath(); ctxG.moveTo(x,0); ctxG.lineTo(x,h); ctxG.stroke();
+  }
+}
 
-                const phoneme = prompt('歌詞を入力してください (例: a, i, u, e, o)', 'a');
-                if (phoneme && phonemes.includes(phoneme)) {
-                    const newNote = {
-                        id: Date.now().toString(),
-                        time: time,
-                        pitch: pitch,
-                        duration: 1,
-                        phoneme: phoneme,
-                        envelope: { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.2 },
-                        vibrato: { depth: 0, rate: 0 },
-                        pitchBend: [{ time: 0, value: 0 }, { time: 1, value: 0 }]
-                    };
-                    notes.push(newNote);
-                    notes.sort((a, b) => a.time - b.time);
-                    selectedNote = newNote;
-                    refreshUI();
-                }
-            }
-            isDragging = false;
-        });
+/* Interaction */
+let drag = null;
 
-        function updateSelection() {
-            document.querySelectorAll('.note').forEach(el => el.classList.remove('selected'));
-            if (selectedNote) {
-                const noteEl = document.querySelector(`[data-note-id="${selectedNote.id}"]`);
-                if (noteEl) noteEl.classList.add('selected');
-            }
-        }
+grid.addEventListener('mousedown', e=>{
+  const p = gridPointFromEvent(e);
+  if (state.tool==='draw'){
+    const startBeat = snapBeat(p.beat);
+    const pitch = p.midi;
+    const note = makeNote(startBeat, 1, pitch);
+    state.notes.push(note);
+    state.selection = new Set([note.id]);
+    drag = {type:'resizeEnd', note, startBeat};
+  } else if (state.tool==='select'){
+    const n = hitTestNote(p.x,p.y);
+    if (n){
+      if (!state.selection.has(n.id)){
+        state.selection = new Set([n.id]);
+      }
+      drag = {type:'move', note:n, offBeat:p.beat - n.start, offPitch:p.midi - n.pitch};
+    } else {
+      state.selection.clear();
+    }
+  } else if (state.tool==='pitch'){
+    const n = hitTestNote(p.x,p.y);
+    if (n){
+      const {x,y,w} = noteRect(n);
+      const t = clamp((p.x - x)/w, 0, 1);
+      const cent = clamp((y + piano.keyH/2 - p.y) * (200/ (piano.keyH)), -1200, 1200);
+      if (!n.bendPoints) n.bendPoints=[];
+      n.bendPoints.push({t, cent});
+      n.bendPoints.sort((a,b)=>a.t-b.t);
+    }
+  }
+  drawAll(); updateSelUI();
+});
 
-        // ====== エディタパネル ======
-        function showEditorPanel() {
-            editorPanel.classList.remove('hidden');
-            drawPitchEditor();
-            drawEnvelopeEditor();
-            updateVibratoInputs();
-        }
+grid.addEventListener('mousemove', e=>{
+  if (!drag) return;
+  const p = gridPointFromEvent(e);
+  if (drag.type==='resizeEnd'){
+    const endBeat = state.snap ? snapBeat(p.beat,1/state.quant) : p.beat;
+    drag.note.dur = Math.max(1/state.quant, endBeat - drag.startBeat);
+  } else if (drag.type==='move'){
+    let ns = state.snap ? snapBeat(p.beat - drag.offBeat, 1/state.quant) : (p.beat - drag.offBeat);
+    let np = clamp(Math.round(p.midi - drag.offPitch), piano.minMidi, piano.maxMidi);
+    const dx = ns - drag.note.start;
+    const dp = np - drag.note.pitch;
+    for (const id of state.selection){
+      const n = state.notes.find(nn=>nn.id===id);
+      n.start = clamp(n.start + dx, 0, state.beats-0.25);
+      n.pitch = clamp(n.pitch + dp, piano.minMidi, piano.maxMidi);
+    }
+  }
+  drawAll();
+});
 
-        function hideEditorPanel() {
-            editorPanel.classList.add('hidden');
-        }
+grid.addEventListener('mouseup', ()=>{ drag=null; updateSelUI(); });
+grid.addEventListener('dblclick', e=>{
+  const p = gridPointFromEvent(e);
+  const n = hitTestNote(p.x,p.y);
+  if (n){
+    const lyr = prompt('歌詞を入力', n.lyric||'');
+    if (lyr!=null){ n.lyric = lyr; updateSelUI(); drawAll(); }
+  }
+});
 
-        function drawPitchEditor() {
-            if (!selectedNote) return;
-            const ctx = pitchEditorCtx;
-            const canvas = pitchEditorCanvas;
-            const { duration, pitchBend } = selectedNote;
-            const noteTime = duration;
+function noteRect(n){
+  return {
+    x: n.start * piano.beatW,
+    y: (piano.maxMidi - n.pitch) * piano.keyH,
+    w: Math.max(4, n.dur * piano.beatW)
+  };
+}
+function gridPointFromEvent(e){
+  const rect = grid.getBoundingClientRect();
+  const x = e.clientX - rect.left + gridScroll.scrollLeft;
+  const y = e.clientY - rect.top + gridScroll.scrollTop;
+  const beat = x / piano.beatW;
+  const midi = piano.maxMidi - Math.floor(y / piano.keyH);
+  return {x,y,beat,midi};
+}
+function hitTestNote(x,y){
+  return state.notes.find(n=>{
+    const {x:xx,y:yy,w} = noteRect(n);
+    return x>=xx && x<=xx+w && y>=yy && y<=yy+piano.keyH;
+  });
+}
 
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.beginPath();
-            ctx.moveTo(pitchBend[0].time * canvas.width, (1 - (pitchBend[0].value + 100) / 200) * canvas.height);
-            pitchBend.forEach(point => {
-                const x = point.time * canvas.width;
-                const y = (1 - (point.value + 100) / 200) * canvas.height;
-                ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = '#007BFF';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
+function makeNote(start, dur, pitch){
+  return {
+    id: state.nextId++,
+    start: Math.max(0,start),
+    dur: Math.max(1/state.quant, dur),
+    pitch,
+    lyric: 'la',
+    vel: 100,
+    env: {a:0.01,d:0.06,s:0.8,r:0.08},
+    vib: {depthCent:30, rateHz:5.5},
+    bendPoints: []
+  };
+}
+function snapBeat(b, step = 1/state.quant){
+  return Math.round(b/step)*step;
+}
+function midiToHz(m){ return 440*Math.pow(2,(m-69)/12); }
+function midiToNoteName(m){
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  return names[m%12] + (Math.floor(m/12)-1);
+}
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function max0(v){ return Math.max(0,v); }
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
 
-        function drawEnvelopeEditor() {
-            if (!selectedNote) return;
-            const ctx = envelopeEditorCtx;
-            const canvas = envelopeEditorCanvas;
-            const { envelope } = selectedNote;
-            
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+/* Selection & Editing */
+function updateSelUI(){
+  $('#selCount').textContent = state.selection.size;
+  const n = getSingleSelection();
+  const disabled = !n;
+  ['lyricInput','velInput','vibDepth','vibRate','envA','envD','envS','envR'].forEach(id=>{ $( '#' + id).disabled = disabled; });
+  if (n){
+    $('#lyricInput').value = n.lyric || '';
+    $('#velInput').value = n.vel;
+    $('#vibDepth').value = n.vib.depthCent;
+    $('#vibRate').value = n.vib.rateHz;
+    $('#envA').value = n.env.a; $('#envD').value = n.env.d; $('#envS').value = n.env.s; $('#envR').value = n.env.r;
+  } else {
+    ['lyricInput','velInput','vibDepth','vibRate','envA','envD','envS','envR'].forEach(id=>{ if ($( '#' + id).tagName==='INPUT') $( '#' + id).value=''; });
+  }
+}
+function getSingleSelection(){
+  if (state.selection.size!==1) return null;
+  const id = [...state.selection][0];
+  return state.notes.find(n=>n.id===id) || null;
+}
+function editSelection(fn){
+  for (const id of state.selection){
+    const n = state.notes.find(x=>x.id===id);
+    if (n) fn(n);
+  }
+  drawAll();
+}
 
-            const attackX = envelope.attack * canvas.width;
-            const sustainX = canvas.width;
-            const releaseX = (1 - envelope.release) * canvas.width;
-            const sustainY = (1 - envelope.sustain) * canvas.height;
-            
-            ctx.beginPath();
-            ctx.moveTo(0, canvas.height);
-            ctx.lineTo(attackX, 0); // アタック
-            ctx.lineTo(releaseX, 0); // サスティン
-            ctx.lineTo(canvas.width, canvas.height); // リリース
-            ctx.strokeStyle = '#66BB6A';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
+/* Delete/Duplicate */
+function deleteSelection(){
+  if (state.selection.size===0) return;
+  state.notes = state.notes.filter(n=>!state.selection.has(n.id));
+  state.selection.clear();
+  drawAll(); updateSelUI();
+}
+function duplicateSelection(){
+  if (state.selection.size===0) return;
+  const copy = [];
+  const minStart = Math.min(...[...state.selection].map(id=>state.notes.find(n=>n.id===id).start));
+  for (const id of state.selection){
+    const n = state.notes.find(x=>x.id===id);
+    const nn = JSON.parse(JSON.stringify(n));
+    nn.id = state.nextId++;
+    nn.start += n.dur; // paste after itself
+    copy.push(nn);
+  }
+  state.notes.push(...copy);
+  state.selection = new Set(copy.map(n=>n.id));
+  drawAll(); updateSelUI();
+}
 
-        function updateVibratoInputs() {
-            vibratoDepthInput.value = selectedNote.vibrato.depth;
-            vibratoRateInput.value = selectedNote.vibrato.rate;
-        }
+/* Transport */
+let rafId=null, startTime=0;
+function beatsToSeconds(beats){ return (60/state.bpm)*beats; }
+function secondsToBeats(sec){ return sec/(60/state.bpm); }
 
-        vibratoDepthInput.addEventListener('input', () => {
-            if (selectedNote) {
-                selectedNote.vibrato.depth = parseFloat(vibratoDepthInput.value);
-            }
-        });
+function play(){
+  if (state.playing) return;
+  if (!state.audio) state.audio = new (window.AudioContext || window.webkitAudioContext)();
+  const ac = state.audio;
+  const now = ac.currentTime + 0.05;
+  startTime = now - beatsToSeconds(state.playBeat);
+  schedulePlayback(ac, startTime);
+  state.playing = true;
+  tick();
+}
+function stop(){
+  if (!state.playing) return;
+  state.playing = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (state._stops) { state._stops.forEach(fn=>fn()); state._stops=[]; }
+  state.playBeat = 0;
+  drawAll();
+}
+function tick(){
+  if (!state.playing) return;
+  const ac = state.audio;
+  const t = ac.currentTime - startTime;
+  state.playBeat = secondsToBeats(t);
+  $('#posLabel').textContent = (state.playBeat/4).toFixed(2);
+  drawAll();
+  rafId = requestAnimationFrame(tick);
+}
 
-        vibratoRateInput.addEventListener('input', () => {
-            if (selectedNote) {
-                selectedNote.vibrato.rate = parseFloat(vibratoRateInput.value);
-            }
-        });
-        
-        // ====== 再生機能 ======
-        function playNote(note, time) {
-            if (!audioBuffers[note.phoneme]) return;
+/* Scheduling simple synth */
+function schedulePlayback(ac, originTime){
+  const stops=[];
+  state._stops = stops;
+  const endBeat = Math.max(...state.notes.map(n=>n.start+n.dur), 0);
+  const endSec = beatsToSeconds(endBeat) + 2;
+  // master
+  const master = ac.createGain(); master.gain.value=0.9; master.connect(ac.destination);
 
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffers[note.phoneme];
+  for (const n of state.notes){
+    const t0 = originTime + beatsToSeconds(n.start);
+    const durSec = beatsToSeconds(n.dur);
+    scheduleNote(ac, master, n, t0, durSec, stops);
+  }
+  // safety stop
+  const stopFn = ()=>master.disconnect();
+  stops.push(stopFn);
+  setTimeout(()=>{ if (state.playing){ state.playing=false; drawAll(); } }, (endSec+0.1)*1000);
+}
 
-            const gainNode = audioContext.createGain();
-            const pitchShifter = audioContext.createGain();
+function lyricToVowel(lyr){
+  const s = (lyr||'').toLowerCase().trim();
+  if (s==='n' || s==='m' || s==='ng') return 'n';
+  if (/^a|ah|la|ka|na|sa|ma|ra|ta/.test(s)) return 'a';
+  if (/^i|li|ki|ni|shi|mi|ri|ti/.test(s)) return 'i';
+  if (/^u|lu|ku|nu|su|mu|ru|tu/.test(s)) return 'u';
+  if (/^e|le|ke|ne|se|me|re|te/.test(s)) return 'e';
+  if (/^o|lo|ko|no|so|mo|ro|to|wo/.test(s)) return 'o';
+  return 'a';
+}
+const VOWEL_FORMANTS = {
+  a: [{f:700,q:6,g:1.2},{f:1220,q:6,g:1.0},{f:2600,q:6,g:0.7}],
+  i: [{f:300,q:7,g:1.2},{f:2500,q:7,g:1.0},{f:3200,q:7,g:0.7}],
+  u: [{f:350,q:7,g:1.2},{f:900,q:7,g:1.0},{f:2200,q:7,g:0.7}],
+  e: [{f:500,q:7,g:1.2},{f:1700,q:7,g:1.0},{f:2500,q:7,g:0.7}],
+  o: [{f:400,q:7,g:1.2},{f:800,q:7,g:1.0},{f:2600,q:7,g:0.7}],
+  n: [{f:300,q:10,g:0.8}], // nasal-ish
+};
 
-            source.connect(pitchShifter);
-            pitchShifter.connect(gainNode);
-            gainNode.connect(masterGain);
+function scheduleNote(ac, dest, n, t0, dur, stops){
+  const baseHz = midiToHz(n.pitch);
+  // Source
+  const osc = ac.createOscillator();
+  const saw = ac.createOscillator();
+  osc.type = 'square'; osc.frequency.value = baseHz;
+  saw.type = 'sawtooth'; saw.frequency.value = baseHz;
+  const mix = ac.createGain(); mix.gain.value=0.5;
+  osc.connect(mix); saw.connect(mix);
 
-            const noteDuration = note.duration * T_PER_BEAT;
-            const now = audioContext.currentTime;
+  // Noise breath for attack
+  const noise = ac.createBufferSource();
+  const noiseBuf = ac.createBuffer(1, ac.sampleRate*0.2, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*0.3;
+  noise.buffer = noiseBuf;
+  const nGain = ac.createGain(); nGain.gain.value=0.0;
+  noise.connect(nGain);
 
-            // エンベロープ
-            const attackEnd = now + time + note.envelope.attack * noteDuration;
-            const releaseStart = now + time + noteDuration;
-            
-            gainNode.gain.setValueAtTime(0, now + time);
-            gainNode.gain.linearRampToValueAtTime(1, attackEnd);
-            gainNode.gain.linearRampToValueAtTime(note.envelope.sustain, attackEnd);
-            gainNode.gain.linearRampToValueAtTime(0, releaseStart);
+  // Formant filters
+  const v = VOWEL_FORMANTS[lyricToVowel(n.lyric)];
+  let chain = mix;
+  const bandGains = v.map(f=>{
+    const bp = ac.createBiquadFilter();
+    bp.type='bandpass'; bp.frequency.value = f.f; bp.Q.value = f.q;
+    const g = ac.createGain(); g.gain.value = f.g;
+    chain.connect(bp); bp.connect(g);
+    return g;
+  });
+  const sum = ac.createGain(); sum.gain.value = 0.33;
+  bandGains.forEach(g=>g.connect(sum));
 
-            // ピッチカーブ
-            note.pitchBend.forEach(point => {
-                const bendTime = now + time + point.time * noteDuration;
-                const bendValue = Math.pow(2, point.value / 1200);
-                source.playbackRate.linearRampToValueAtTime(Math.pow(2, (note.pitch - 60) / 12) * bendValue, bendTime);
-            });
+  // lowpass for brightness vs velocity
+  const lp = ac.createBiquadFilter(); lp.type='lowpass';
+  lp.frequency.value = 1200 + (n.vel/127)*4000;
+  sum.connect(lp);
 
-            // ビブラート
-            if (note.vibrato.depth > 0 && note.vibrato.rate > 0) {
-                const lfo = audioContext.createOscillator();
-                const lfoGain = audioContext.createGain();
+  // Envelope
+  const amp = ac.createGain(); amp.gain.value=0;
+  const a=n.env.a, dcy=n.env.d, s=n.env.s, r=n.env.r;
+  const tA=t0, tD=t0+a, tS=tD+dcy, tOff=t0+dur;
+  amp.gain.cancelScheduledValues(0);
+  amp.gain.setValueAtTime(0, tA);
+  amp.gain.linearRampToValueAtTime(1, tD);
+  amp.gain.linearRampToValueAtTime(s, tS);
+  amp.gain.setValueAtTime(s, tOff);
+  amp.gain.linearRampToValueAtTime(0, tOff + r);
 
-                lfo.type = 'sine';
-                lfo.frequency.setValueAtTime(note.vibrato.rate, now + time);
-                lfoGain.gain.setValueAtTime(note.vibrato.depth, now + time);
+  // Breath noise envelope (short)
+  nGain.gain.setValueAtTime(0, t0);
+  nGain.gain.linearRampToValueAtTime(0.2, t0 + Math.min(0.03, a+0.01));
+  nGain.gain.linearRampToValueAtTime(0, t0 + 0.12);
 
-                lfo.connect(lfoGain);
-                lfoGain.connect(source.playbackRate);
+  // Vibrato + pitch bend to detune (cents)
+  const detParam = osc.detune; const detParam2 = saw.detune;
+  const curve = buildDetuneCurve(ac, n, dur);
+  detParam.cancelScheduledValues(0); detParam2.cancelScheduledValues(0);
+  detParam.setValueCurveAtTime(curve, t0, Math.max(0.001,dur));
+  detParam2.setValueCurveAtTime(curve, t0, Math.max(0.001,dur));
 
-                lfo.start(now + time);
-                lfo.stop(now + time + noteDuration);
-            }
-            
-            source.start(now + time);
-            source.stop(now + time + noteDuration);
-        }
+  // chain connect
+  nGain.connect(lp);
+  lp.connect(amp);
+  amp.connect(dest);
 
-        function scheduleNotes() {
-            const now = audioContext.currentTime;
-            notes.forEach(note => {
-                const noteStartTime = now + note.time * T_PER_BEAT;
-                playNote(note, noteStartTime);
-            });
-        }
+  // start/stop
+  osc.start(t0); saw.start(t0); noise.start(t0);
+  const endT = t0 + dur + r + 0.05;
+  osc.stop(endT); saw.stop(endT); noise.stop(t0+0.2);
+  const stop = ()=>{
+    try{ amp.disconnect(); }catch{}
+  };
+  stops.push(stop);
+}
 
-        playBtn.addEventListener('click', () => {
-            if (isPlaying) return;
-            isPlaying = true;
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            scheduleNotes();
-            console.log('再生開始');
-        });
+function buildDetuneCurve(ac, n, dur){
+  const sr = 200; // points per second
+  const len = Math.max(2, Math.floor(dur*sr));
+  const arr = new Float32Array(len);
+  for (let i=0;i<len;i++){
+    const t = i/(len-1); // 0..1
+    const base = 0;
+    const bend = sampleBend(n.bendPoints, t); // in cents
+    const vib = n.vib.depthCent * Math.sin(2*Math.PI*n.vib.rateHz*(t*dur));
+    arr[i] = base + bend + vib;
+  }
+  return arr;
+}
+function sampleBend(points, t){
+  if (!points || points.length===0) return 0;
+  const pts = points.concat().sort((a,b)=>a.t-b.t);
+  if (t<=pts[0].t) return pts[0].cent;
+  if (t>=pts[pts.length-1].t) return pts[pts.length-1].cent;
+  for (let i=0;i<pts.length-1;i++){
+    const a = pts[i], b = pts[i+1];
+    if (t>=a.t && t<=b.t){
+      const u = (t-a.t)/(b.t-a.t);
+      // smoothstep interpolation
+      const s = u*u*(3-2*u);
+      return a.cent*(1-s) + b.cent*s;
+    }
+  }
+  return 0;
+}
 
-        stopBtn.addEventListener('click', () => {
-            if (!isPlaying) return;
-            isPlaying = false;
-            masterGain.disconnect();
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
-            console.log('再生停止');
-        });
+/* Export WAV via OfflineAudioContext */
+async function exportWav(){
+  if (state.notes.length===0){ alert('ノートがありません'); return; }
+  const sr = 44100;
+  const endBeat = Math.max(...state.notes.map(n=>n.start+n.dur)) + 1;
+  const durSec = beatsToSeconds(endBeat);
+  const oac = new OfflineAudioContext({numberOfChannels:2, length: Math.ceil(sr*(durSec+1)), sampleRate: sr});
+  const master = oac.createGain(); master.gain.value = 0.9; master.connect(oac.destination);
 
-        // ページ読み込み時の処理
-        loadAudio().then(() => {
-            refreshUI();
-            window.addEventListener('resize', refreshUI);
-        });
-    </script>
+  const stops=[];
+  for (const n of state.notes){
+    const t0 = beatsToSeconds(n.start);
+    const dur = beatsToSeconds(n.dur);
+    scheduleNote(oac, master, n, t0, dur, stops);
+  }
+
+  $('#cpuLabel').textContent='rendering...';
+  const buf = await oac.startRendering();
+  $('#cpuLabel').textContent='done';
+  const wav = audioBufferToWav(buf);
+  const blob = new Blob([wav], {type:'audio/wav'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'utau-like.wav'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* WAV util */
+function audioBufferToWav(buffer, opt){
+  const numOfChan = buffer.numberOfChannels;
+  const length = buffer.length * numOfChan * 2 + 44;
+  const bufferArr = new ArrayBuffer(length);
+  const view = new DataView(bufferArr);
+  const channels = [];
+  let pos = 0;
+
+  function setUint16(data){ view.setUint16(pos, data, true); pos+=2; }
+  function setUint32(data){ view.setUint32(pos, data, true); pos+=4; }
+
+  // RIFF chunk descriptor
+  writeString('RIFF'); setUint32(length - 8);
+  writeString('WAVE');
+
+  // fmt sub-chunk
+  writeString('fmt '); setUint32(16); setUint16(1); setUint16(numOfChan);
+  setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * numOfChan * 2);
+  setUint16(numOfChan * 2); setUint16(16);
+
+  // data sub-chunk
+  writeString('data'); setUint32(length - pos - 4);
+
+  // write interleaved data
+  for (let i=0;i<numOfChan;i++) channels.push(buffer.getChannelData(i));
+  let offset = 0;
+  while (pos < length){
+    for (let i=0;i<numOfChan;i++){
+      let samp = Math.max(-1, Math.min(1, channels[i][offset]));
+      view.setInt16(pos, samp<0 ? samp*0x8000 : samp*0x7fff, true);
+      pos += 2;
+    }
+    offset++;
+  }
+
+  return new Uint8Array(bufferArr);
+
+  function writeString(s){ for (let i=0;i<s.length;i++) view.setUint8(pos++, s.charCodeAt(i)); }
+}
+
+/* Save/Load */
+function serializeProject(){
+  return {
+    bpm: state.bpm, beats: state.beats, notes: state.notes
+  };
+}
+function deserializeProject(obj){
+  state.bpm = obj.bpm||120; state.beats = obj.beats||64;
+  state.notes = (obj.notes||[]).map(n=>({ ...n, id: n.id||state.nextId++ }));
+  state.selection.clear();
+  $('#bpm').value = state.bpm;
+  drawAll(); updateSelUI();
+}
+function downloadJSON(){
+  const data = JSON.stringify(serializeProject(), null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='utau-like.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+function onLoadFile(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  if (file.name.endsWith('.json')){
+    reader.onload = ()=>{ try{ deserializeProject(JSON.parse(reader.result)); } catch(err){ alert('JSON読み込み失敗'); } };
+    reader.readAsText(file);
+  } else if (file.name.endsWith('.wav')){
+    alert('WAVの読み込みは未対応です。WAV書き出しのみサポートしています。');
+  } else {
+    alert('対応していないファイルです');
+  }
+  e.target.value='';
+}
+
+/* Initial demo content */
+(function seed(){
+  const base = 0;
+  const scale = [0,2,4,5,7,9,11,12];
+  for (let i=0;i<8;i++){
+    const start = i*2;
+    const pitch = 60 + scale[i%scale.length];
+    state.notes.push(makeNote(start, 1.5, pitch));
+  }
+  state.notes[0].lyric='a'; state.notes[1].lyric='i'; state.notes[2].lyric='u'; state.notes[3].lyric='e';
+  state.notes[4].lyric='o'; state.notes[5].lyric='la'; state.notes[6].lyric='na'; state.notes[7].lyric='n';
+  drawAll();
+})();
+
+drawAll();
+updateSelUI();
+
+</script>
 </body>
 </html>
