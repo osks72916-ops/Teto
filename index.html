@@ -1,500 +1,371 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>WebUTAU — フル機能版</title>
-<style>
-:root{ --bg:#eef3fb; --panel:#dbe9ff; --line:#b7c9e6; --note:#6fb3ff; --note-sel:#ff9bb3; --text:#102030; }
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Meiryo, 'Hiragino Kaku Gothic ProN', 'Segoe UI', Arial, sans-serif}
-#menu{display:flex;gap:8px;padding:6px 8px;background:#f7fbff;border-bottom:1px solid var(--line);align-items:center}
-.icon-btn{background:#fff;border:1px solid var(--line);padding:6px 8px;border-radius:4px;cursor:pointer}
-.toolbar{display:flex;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:linear-gradient(#ffffff,#eef6ff)}
-.container{display:flex;height:calc(100% - 106px);min-height:0}
-.leftPane{width:120px;background:#f5f8fb;border-right:1px solid var(--line);padding:8px;overflow:auto}
-.keys{position:relative;height:100%;overflow:hidden}
-.key{height:20px;border-bottom:1px solid #e2eaf6;display:flex;align-items:center;justify-content:center;font-size:11px;color:#2b4666}
-.rightPane{flex:1;display:flex;flex-direction:column;min-height:0}
-.topArea{height:44px;padding:6px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:linear-gradient(#fff,#f3f7ff)}
-.canvasWrap{flex:1;overflow:auto;position:relative;background:linear-gradient(#ffffff,#eef4ff);min-height:0}
-#roll{display:block}
-.sidebar{width:320px;border-left:1px solid var(--line);background:#f7fbff;padding:8px;overflow:auto}
-.statusbar{height:34px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:6px 8px;background:#f7fbff}
-.input{padding:6px;border:1px solid var(--line);border-radius:4px;background:#fff}
-.small{font-size:12px;color:#4b678a}
-.pitch-curve{background:#fff;border:1px solid #cdd9ee;height:140px;width:100%}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web UTAU Replica</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #piano-roll-container {
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+            height: 400px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            overflow-x: scroll;
+            cursor: crosshair;
+        }
+
+        #piano-roll {
+            background-color: #fff;
+        }
+
+        .note {
+            background-color: #4CAF50;
+            border: 1px solid #388E3C;
+            position: absolute;
+            box-sizing: border-box;
+            opacity: 0.8;
+            cursor: pointer;
+        }
+
+        .selected {
+            background-color: #FFC107;
+        }
+
+        .note-lyrics {
+            color: #fff;
+            font-size: 12px;
+            padding: 2px;
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            white-space: nowrap;
+        }
+
+        #controls {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #editor-panel {
+            margin-top: 20px;
+            width: 90%;
+            max-width: 1200px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .editor-section {
+            margin-bottom: 15px;
+        }
+
+        .editor-section h3 {
+            margin: 0 0 10px 0;
+        }
+
+        #pitch-editor, #envelope-editor {
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ccc;
+            cursor: crosshair;
+            background-color: #fafafa;
+        }
+    </style>
 </head>
 <body>
-<!-- Menu -->
-<div id="menu">
-  <button class="icon-btn" id="newBtn">新規</button>
-  <button class="icon-btn" id="openBtn">開く</button>
-  <button class="icon-btn" id="saveBtn">保存</button>
-  <div style="flex:1"></div>
-  <div class="small">Tempo <input id="tempo" class="input" type="number" value="120" style="width:72px"> PPQ <input id="ppq" class="input" type="number" value="480" style="width:72px"></div>
-</div>
 
-<!-- Toolbar -->
-<div class="toolbar">
-  <div><button class="icon-btn" id="playBtn">▶</button><button class="icon-btn" id="stopBtn">■</button><button class="icon-btn" id="renderBtn">Render</button><button class="icon-btn" id="exportBtn">WAV出力</button></div>
-  <div style="width:16px"></div>
-  <div><button class="icon-btn" id="loadDefault">デフォルト (teto) 読込</button><button class="icon-btn" id="loadVB">Voicebank 読込</button></div>
-  <div style="flex:1"></div>
-  <div class="small">Quantize <select id="quant" class="input"><option value="480">1/4</option><option value="240">1/8</option><option value="120" selected>1/16</option><option value="60">1/32</option></select></div>
-</div>
+    <header>
+        <h1>簡易UTAU Web版</h1>
+    </header>
 
-<div class="container">
-  <div class="leftPane">
-    <div style="font-weight:700;margin-bottom:6px">Piano</div>
-    <div id="keys" class="keys"></div>
-    <div style="margin-top:10px"><div class="small">ツール</div><button class="icon-btn" id="toolNote">ノート</button> <button class="icon-btn" id="toolPitch">ピッチ</button></div>
-  </div>
-
-  <div style="display:flex;flex:1;min-height:0">
-    <div class="rightPane">
-      <div class="topArea small">
-        <div>Mode: <select id="mode" class="input"><option>Note</option><option>Pitch</option></select></div>
-        <div>Snap: <input id="snap" type="checkbox" checked style="margin-left:6px"></div>
-        <div style="margin-left:12px">BPM: <span id="bpmDisplay">120</span></div>
-        <div style="margin-left:12px">Voicebank: <span id="vbName">(未)</span></div>
-        <div style="flex:1"></div>
-        <div>Lyric: <input id="lyricBox" class="input" style="width:120px"></div>
-      </div>
-
-      <div style="display:flex;flex:1;min-height:0">
-        <div class="canvasWrap" id="canvasWrap">
-          <canvas id="roll"></canvas>
+    <main>
+        <div id="piano-roll-container">
+            <div id="lyrics-input-area"></div>
+        </div>
+        
+        <div id="controls">
+            <button id="play-btn">再生</button>
+            <button id="stop-btn">停止</button>
         </div>
 
-        <div class="sidebar">
-          <div style="font-weight:800">選択ノート</div>
-          <div style="margin-top:6px">Lyric: <input id="propLyric" class="input" style="width:100%"></div>
-          <div style="margin-top:8px">Pitch (MIDI): <input id="propPitch" type="number" class="input" style="width:80px"></div>
-          <div style="margin-top:8px">Length (ticks): <input id="propLen" type="number" class="input" style="width:120px"></div>
-          <div style="margin-top:8px">VEL: <input id="propVel" type="range" min="0" max="127" value="100" style="width:100%"></div>
-          <div style="margin-top:8px">PBS: <input id="propPBS" class="input" style="width:80px"></div>
-          <div style="margin-top:8px">PBW: <input id="propPBW" class="input" style="width:80px"></div>
-          <div style="margin-top:8px">PBY: <input id="propPBY" class="input" style="width:80px"></div>
-
-          <div style="margin-top:12px;font-weight:800">Pitch Editor</div>
-          <canvas id="pitchCanvas" class="pitch-curve" width="280"></canvas>
-          <div style="margin-top:8px;font-size:12px;color:#4b678a">ポイントをクリックで追加。ドラッグで移動。</div>
-          <div style="margin-top:12px"><button class="icon-btn" id="undoBtn">Undo</button><button class="icon-btn" id="redoBtn">Redo</button></div>
+        <div id="editor-panel" class="hidden">
+            <h2>ノート編集</h2>
+            <div class="editor-section">
+                <h3>ピッチカーブ</h3>
+                <canvas id="pitch-editor"></canvas>
+            </div>
+            <div class="editor-section">
+                <h3>エンベロープ</h3>
+                <canvas id="envelope-editor"></canvas>
+            </div>
+            <div class="editor-section">
+                <h3>ビブラート</h3>
+                <label for="vibrato-depth">深さ:</label>
+                <input type="range" id="vibrato-depth" min="0" max="100" value="0">
+                <label for="vibrato-rate">速さ:</label>
+                <input type="range" id="vibrato-rate" min="0" max="10" step="0.1" value="0">
+            </div>
         </div>
-      </div>
+    </main>
+    
+    <script>
+        // ====== 設定と初期化 ======
+        const NOTE_WIDTH = 50;
+        const NOTE_HEIGHT = 20;
+        const PITCH_RANGE = 24;
+        const PITCH_OFFSET = 60;
+        const TEMPO = 120;
+        const T_PER_BEAT = 60 / TEMPO;
 
-      <div class="statusbar">
-        <div class="small">Selected: <span id="sel">None</span></div>
-        <div class="small">Tick: <span id="tick">0</span></div>
-        <div class="small">Length: <span id="len">0</span></div>
-        <div style="flex:1"></div>
-        <div class="small">Tips: ダブルクリックで歌詞 / Altドラッグで移動 / 端をドラッグで長さ変更</div>
-      </div>
-    </div>
-  </div>
-</div>
+        let audioContext;
+        let masterGain;
+        const audioBuffers = {};
+        const notes = [];
+        const phonemes = ['a', 'i', 'u', 'e', 'o'];
+        const noteElements = new Map();
 
-<input id="fileOpen" type="file" accept=".json,.ust" style="display:none">
-<input id="vbPicker" type="file" webkitdirectory directory multiple style="display:none">
+        let isPlaying = false;
+        let selectedNote = null;
 
-<script>
-// ---------- Core state ----------
-let PPQ = 480, BPM = 120;
-let notes = []; // {id,tickOn,tickDur,pitch,lyric,vel,PBS,PBW,PBY,pitchPoints}
-let nextId = 1, selection = null;
-let vb = null; // {name,entries:Map, wavCache:Map}
-const undoStack = [], redoStack = [];
-const ppm = { pxPerTick: 0.12, keyHeight: 20, lowest:36, highest:96 };
+        // UI要素の取得
+        const pianoRollContainer = document.getElementById('piano-roll-container');
+        const lyricsInputArea = document.getElementById('lyrics-input-area');
+        const playBtn = document.getElementById('play-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const editorPanel = document.getElementById('editor-panel');
+        const vibratoDepthInput = document.getElementById('vibrato-depth');
+        const vibratoRateInput = document.getElementById('vibrato-rate');
 
-// ---------- Audio helpers ----------
-let audioCtx = null;
-async function ensureAudio(){ if(audioCtx && audioCtx.state!=='closed') return audioCtx; audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
-function decodeAudioDataSafe(ac, arrayBuffer){
-  return new Promise((res,rej)=>{
-    try{
-      const p = ac.decodeAudioData(arrayBuffer.slice(0));
-      if(p && p.then) p.then(res).catch(()=>ac.decodeAudioData(arrayBuffer.slice(0),res,rej));
-      else ac.decodeAudioData(arrayBuffer.slice(0),res,rej);
-    }catch(e){ ac.decodeAudioData(arrayBuffer.slice(0),res,rej); }
-  });
-}
+        // ====== 音源のロード ======
+        async function loadAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
 
-// ---------- Canvas & drawing ----------
-const roll = document.getElementById('roll');
-const ctx = roll.getContext('2d');
-const canvasWrap = document.getElementById('canvasWrap');
+            for (const phoneme of phonemes) {
+                try {
+                    const response = await fetch(`audio/${phoneme}.wav`);
+                    const arrayBuffer = await response.arrayBuffer();
+                    audioBuffers[phoneme] = await audioContext.decodeAudioData(arrayBuffer);
+                    console.log(`Loaded ${phoneme}.wav`);
+                } catch (error) {
+                    console.error(`Failed to load ${phoneme}.wav`, error);
+                }
+            }
+        }
 
-function resizeCanvas(){
-  const w = Math.max(1600, Math.ceil((getLengthTicks()+PPQ) * ppm.pxPerTick));
-  const h = (ppm.highest - ppm.lowest) * ppm.keyHeight;
-  roll.width = w; roll.height = h;
-  canvasWrap.scrollLeft = 0; canvasWrap.scrollTop = 0;
-  renderKeys(); draw();
-}
-window.addEventListener('resize', resizeCanvas);
+        // ====== UIの描画 ======
+        function drawPianoRoll() {
+            // 背景のグリッドを動的に生成
+            const numBeats = Math.max(16, Math.ceil(pianoRollContainer.scrollWidth / NOTE_WIDTH / 4) * 4);
+            pianoRollContainer.style.width = `${numBeats * NOTE_WIDTH}px`;
+            
+            // ノートのHTML要素を更新
+            noteElements.forEach(el => el.remove());
+            noteElements.clear();
 
-function getLengthTicks(){ if(notes.length===0) return 1920; return Math.max(...notes.map(n=>n.tickOn+n.tickDur)); }
-function renderKeys(){
-  const keysEl = document.getElementById('keys');
-  keysEl.innerHTML = '';
-  const h = (ppm.highest - ppm.lowest) * ppm.keyHeight;
-  keysEl.style.height = h + 'px';
-  for(let m=ppm.lowest; m<ppm.highest; m++){
-    const d = document.createElement('div'); d.className='key'; d.style.height = ppm.keyHeight+'px';
-    d.textContent = midiToName(m);
-    if([1,3,6,8,10].includes(m%12)) d.style.background='#eaf0ff';
-    keysEl.appendChild(d);
-  }
-}
-function midiToName(n){ const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return names[n%12]+Math.floor(n/12-1); }
+            notes.forEach(note => {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'note';
+                noteEl.style.left = `${note.time * NOTE_WIDTH}px`;
+                noteEl.style.top = `${(PITCH_RANGE - 1 - (note.pitch - PITCH_OFFSET)) * NOTE_HEIGHT}px`;
+                noteEl.style.width = `${note.duration * NOTE_WIDTH}px`;
+                noteEl.style.height = `${NOTE_HEIGHT}px`;
 
-function ticksToX(t){ return Math.round(t * ppm.pxPerTick); }
-function xToTicks(x){ return Math.round(x / ppm.pxPerTick); }
-function pitchToY(p){ return (ppm.highest - p - 1) * ppm.keyHeight; }
-function snapTick(t){ if(!document.getElementById('snap').checked) return t; const q = parseInt(document.getElementById('quant').value,10); return Math.round(t / q) * q; }
+                const lyricsEl = document.createElement('div');
+                lyricsEl.className = 'note-lyrics';
+                lyricsEl.textContent = note.phoneme;
+                noteEl.appendChild(lyricsEl);
 
-function draw(){
-  ctx.clearRect(0,0,roll.width,roll.height);
-  // rows
-  for(let p=ppm.lowest; p<ppm.highest; p++){
-    const y = pitchToY(p);
-    ctx.fillStyle = ([1,3,6,8,10].includes(p%12))? '#f7fbff':'#ffffff';
-    ctx.fillRect(0,y,roll.width,ppm.keyHeight);
-    ctx.strokeStyle = '#e6eef9'; ctx.beginPath(); ctx.moveTo(0,y+ppm.keyHeight); ctx.lineTo(roll.width,y+ppm.keyHeight); ctx.stroke();
-  }
-  // vertical beat/measure lines
-  const beatTicks = PPQ, barTicks = beatTicks * 4;
-  for(let t=0; t<getLengthTicks(); t+=PPQ/4){
-    const x = ticksToX(t);
-    ctx.strokeStyle = (t%barTicks===0)?'#ff9aa2':'#d7e1f3'; ctx.lineWidth = (t%barTicks===0)?1.2:0.6;
-    ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,roll.height); ctx.stroke();
-  }
-  // notes
-  for(const n of notes){
-    const x = ticksToX(n.tickOn), y = pitchToY(n.pitch), w = Math.max(4,ticksToX(n.tickDur));
-    const sel = (selection === n.id);
-    ctx.fillStyle = sel? 'var(--note-sel)' : 'var(--note)'; ctx.strokeStyle = sel? '#ff6f8f' : '#2f7fcf';
-    roundRect(ctx, x+0.5, y+2.5, w-1, ppm.keyHeight-5, 6, true, true);
-    ctx.fillStyle = '#02243a'; ctx.fillRect(x+6, y+6, Math.min(80, w-12), ppm.keyHeight-12);
-    ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.fillText(n.lyric||'', x+8, y+ppm.keyHeight-6);
-    // vel bar
-    const vel = n.vel ?? 100; ctx.fillStyle = '#185f9a'; ctx.fillRect(x+w-6, y+4, 4, Math.round((ppm.keyHeight-8)*(vel/127)));
-  }
-}
+                pianoRollContainer.appendChild(noteEl);
+                noteElements.set(note, noteEl);
+            });
+            updateSelection();
+        }
 
-function roundRect(ctx,x,y,w,h,r,fill,stroke){
-  if(w<2*r) r=w/2; if(h<2*r) r=h/2;
-  ctx.beginPath(); ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
-  if(fill) ctx.fill(); if(stroke) ctx.stroke();
-}
+        function updateSelection() {
+            noteElements.forEach((el, note) => {
+                if (note === selectedNote) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        }
 
-// ---------- Interaction (pointer/touch + mouse) ----------
-let dragging = null; // {mode,id,startX,startY,orig}
-roll.addEventListener('pointerdown', e => {
-  roll.setPointerCapture?.(e.pointerId);
-  const rect = roll.getBoundingClientRect();
-  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
-  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
-  const tick = snapTick(xToTicks(x));
-  const pitch = clamp(ppm.lowest, ppm.highest-1, Math.floor(ppm.highest - (y/ppm.keyHeight)));
-  const hit = notes.slice().reverse().find(n=>{
-    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
-    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
-  });
-  if(hit){
-    selection = hit.id; updateProps();
-    const nx = ticksToX(hit.tickOn), nw = Math.max(4,ticksToX(hit.tickDur));
-    if(Math.abs(x-nx) < 8) dragging = {mode:'resizeL', id:hit.id, startX:x, orig:{...hit}};
-    else if(Math.abs(x - (nx+nw)) < 8) dragging = {mode:'resizeR', id:hit.id, startX:x, orig:{...hit}};
-    else if(e.altKey || e.shiftKey) dragging = {mode:'move', id:hit.id, startX:x, startY:y, orig:{...hit}};
-    else dragging = {mode:'select', id:hit.id};
-  } else {
-    // create new
-    const id = nextId++;
-    const note = { id, tickOn: tick, tickDur: PPQ, pitch, lyric: document.getElementById('lyricBox').value || 'あ', vel:100, PBS:0, PBW:'', PBY:'', pitchPoints:[] };
-    pushUndo(); notes.push(note); selection = id; updateProps();
-    dragging = {mode:'resizeR', id, startX:x, orig:{...note}};
-  }
-  draw();
-});
+        // ====== ノートの追加と選択 ======
+        pianoRollContainer.addEventListener('click', (e) => {
+            if (isPlaying) return;
 
-roll.addEventListener('pointermove', e=>{
-  if(!dragging) return;
-  const rect = roll.getBoundingClientRect();
-  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
-  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
-  const n = notes.find(z=>z.id === dragging.id); if(!n) return;
-  if(dragging.mode === 'move'){
-    const dx = x - dragging.startX, dy = y - dragging.startY;
-    const newTick = snapTick(dragging.orig.tickOn + xToTicks(dx));
-    const newPitch = clamp(ppm.lowest, ppm.highest-1, dragging.orig.pitch - Math.round(dy/ppm.keyHeight));
-    n.tickOn = Math.max(0, newTick); n.pitch = newPitch;
-  } else if(dragging.mode === 'resizeR'){
-    const newDur = Math.max(30, xToTicks(dragging.orig.tickDur + (x - dragging.startX)));
-    n.tickDur = newDur;
-  } else if(dragging.mode === 'resizeL'){
-    const newOn = Math.max(0, snapTick(dragging.orig.tickOn + xToTicks(x - dragging.startX)));
-    const d = dragging.orig.tickOn - newOn;
-    n.tickOn = newOn; n.tickDur = Math.max(30, dragging.orig.tickDur + d);
-  }
-  draw(); updateProps();
-});
+            const rect = pianoRollContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left + pianoRollContainer.scrollLeft;
+            const y = e.clientY - rect.top;
 
-window.addEventListener('pointerup', e => { try{ roll.releasePointerCapture?.(e.pointerId); }catch(_){} dragging = null; });
+            const clickedNoteEl = e.target.closest('.note');
+            if (clickedNoteEl) {
+                const note = Array.from(noteElements.keys()).find(key => noteElements.get(key) === clickedNoteEl);
+                if (note) {
+                    selectedNote = note;
+                    showEditorPanel();
+                    updateSelection();
+                }
+            } else {
+                const time = Math.floor(x / NOTE_WIDTH);
+                const pitchIndex = Math.floor(y / NOTE_HEIGHT);
+                const pitch = PITCH_RANGE - 1 - pitchIndex + PITCH_OFFSET;
 
-// dblclick edit lyric
-roll.addEventListener('dblclick', e=>{
-  const rect = roll.getBoundingClientRect();
-  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
-  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
-  const hit = notes.slice().reverse().find(n=>{
-    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
-    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
-  });
-  if(hit){ const v = prompt('歌詞を入力', hit.lyric); if(v !== null){ pushUndo(); hit.lyric = v; draw(); updateProps(); } }
-});
+                const phoneme = prompt('歌詞を入力してください (例: a, i, u, e, o)', 'a');
+                if (phoneme && phonemes.includes(phoneme)) {
+                    notes.push({
+                        time: time,
+                        pitch: pitch,
+                        duration: 1,
+                        phoneme: phoneme,
+                        envelope: { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.2 },
+                        vibrato: { depth: 0, rate: 0 },
+                        pitchBend: [{ time: 0, value: 0 }, { time: 1, value: 0 }]
+                    });
+                    notes.sort((a, b) => a.time - b.time);
+                    drawPianoRoll();
+                }
+            }
+        });
 
-// right-click delete
-roll.addEventListener('contextmenu', e=>{
-  e.preventDefault();
-  const rect = roll.getBoundingClientRect();
-  const x = e.clientX - rect.left + roll.parentElement.scrollLeft;
-  const y = e.clientY - rect.top + roll.parentElement.scrollTop;
-  const idx = notes.findIndex(n=>{
-    const nx = ticksToX(n.tickOn), ny = pitchToY(n.pitch), nw = Math.max(4, ticksToX(n.tickDur));
-    return x>=nx && x<=nx+nw && y>=ny && y<=ny+ppm.keyHeight;
-  });
-  if(idx >= 0){ if(confirm('ノートを削除しますか？')){ pushUndo(); notes.splice(idx,1); selection = null; draw(); updateProps(); } }
-});
+        // ====== エディタパネル ======
+        function showEditorPanel() {
+            if (!selectedNote) return;
+            editorPanel.classList.remove('hidden');
+            updateVibratoInputs();
+        }
 
-function clamp(a,b,v){ return Math.max(a, Math.min(b, v)); }
+        function updateVibratoInputs() {
+            vibratoDepthInput.value = selectedNote.vibrato.depth;
+            vibratoRateInput.value = selectedNote.vibrato.rate;
+        }
 
-// ---------- Props panel binding ----------
-const propLyric = document.getElementById('propLyric'), propPitch = document.getElementById('propPitch'), propLen = document.getElementById('propLen'), propVel = document.getElementById('propVel'), propPBS = document.getElementById('propPBS'), propPBW = document.getElementById('propPBW'), propPBY = document.getElementById('propPBY');
+        vibratoDepthInput.addEventListener('input', () => {
+            if (selectedNote) {
+                selectedNote.vibrato.depth = parseFloat(vibratoDepthInput.value);
+            }
+        });
 
-function updateProps(){
-  const s = notes.find(n=>n.id===selection);
-  document.getElementById('sel').innerText = selection || 'None';
-  if(!s){ propLyric.value=''; propPitch.value=''; propLen.value=''; propVel.value=100; propPBS.value=''; propPBW.value=''; propPBY.value=''; drawPitch(); return; }
-  propLyric.value = s.lyric; propPitch.value = s.pitch; propLen.value = s.tickDur; propVel.value = s.vel || 100; propPBS.value = s.PBS || ''; propPBW.value = s.PBW || ''; propPBY.value = s.PBY || '';
-  drawPitch();
-}
+        vibratoRateInput.addEventListener('input', () => {
+            if (selectedNote) {
+                selectedNote.vibrato.rate = parseFloat(vibratoRateInput.value);
+            }
+        });
 
-propLyric.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.lyric = propLyric.value; draw(); }});
-propPitch.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.pitch = parseInt(propPitch.value,10); draw(); }});
-propLen.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ pushUndo(); s.tickDur = parseInt(propLen.value,10); resizeCanvas(); draw(); }});
-propVel.addEventListener('input', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.vel = parseInt(propVel.value,10); draw(); }});
-propPBS.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBS = propPBS.value; }});
-propPBW.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBW = propPBW.value; }});
-propPBY.addEventListener('change', ()=>{ const s = notes.find(n=>n.id===selection); if(s){ s.PBY = propPBY.value; }});
+        // ====== 再生機能 ======
+        function playNote(note, time) {
+            if (!audioBuffers[note.phoneme]) return;
 
-// ---------- Pitch editor (simple) ----------
-const pitchCanvas = document.getElementById('pitchCanvas'), pctx = pitchCanvas.getContext('2d');
-function drawPitch(){
-  pctx.clearRect(0,0,pitchCanvas.width,pitchCanvas.height);
-  pctx.fillStyle='#fff'; pctx.fillRect(0,0,pitchCanvas.width,pitchCanvas.height);
-  const s = notes.find(n=>n.id===selection); if(!s) return;
-  const pts = s.pitchPoints || [];
-  pctx.strokeStyle = '#2a6fb3'; pctx.beginPath();
-  for(let i=0;i<pts.length;i++){
-    const pt=pts[i]; const x=pt.x*pitchCanvas.width, y=(1-pt.y)*pitchCanvas.height;
-    if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
-  }
-  pctx.stroke();
-  for(const pt of pts){
-    const x=pt.x*pitchCanvas.width, y=(1-pt.y)*pitchCanvas.height;
-    pctx.fillStyle='#1f6fb3'; pctx.beginPath(); pctx.arc(x,y,4,0,Math.PI*2); pctx.fill();
-  }
-}
-pitchCanvas.addEventListener('mousedown', e=>{
-  const s = notes.find(n=>n.id===selection); if(!s) return;
-  pushUndo();
-  const r = pitchCanvas.getBoundingClientRect();
-  const x = (e.clientX - r.left)/pitchCanvas.width; const y = 1 - ((e.clientY - r.top)/pitchCanvas.height);
-  s.pitchPoints = s.pitchPoints || []; s.pitchPoints.push({x: Math.max(0,Math.min(1,x)), y: Math.max(0,Math.min(1,y))}); drawPitch();
-});
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffers[note.phoneme];
 
-// ---------- Voicebank / oto.ini ----------
-async function parseOto(text){
-  const map = new Map();
-  const lines = text.split(/\r?\n/);
-  for(const line of lines){
-    if(!line.trim()) continue;
-    const eq = line.indexOf('=');
-    if(eq<0) continue;
-    const left = line.slice(0,eq);
-    const right = line.slice(eq+1);
-    const comma = left.indexOf(',');
-    if(comma<0) continue;
-    const file = left.slice(0,comma).trim();
-    const alias = left.slice(comma+1).trim();
-    let vals = right.trim().split(/\s+/);
-    if(vals.length<5) vals = right.split(',').map(s=>s.trim());
-    const nums = vals.map(s=>parseFloat(s)||0);
-    map.set(alias, {file, alias, offset: nums[0]||0, consonant: nums[1]||0, cutoff: nums[2]||0, preutter: nums[3]||0, overlap: nums[4]||0});
-  }
-  return map;
-}
+            const gainNode = audioContext.createGain();
+            const pitchShifter = audioContext.createGain();
 
-async function loadDefaultTeto(){
-  try{
-    const base = './teto/';
-    const otoTxt = await (await fetch(base+'oto.ini')).text();
-    const entries = await parseOto(otoTxt);
-    const vbObj = { name:'teto', entries, wavCache: new Map() };
-    await ensureAudio();
-    const names = new Set(Array.from(entries.values()).map(e=>e.file));
-    for(const fn of names){
-      try{
-        const res = await fetch(base+'wav/'+fn);
-        if(!res.ok) { console.warn('not found', fn); continue; }
-        const ab = await res.arrayBuffer();
-        const buf = await decodeAudioDataSafe(audioCtx, ab);
-        vbObj.wavCache.set(fn.toLowerCase(), buf);
-      }catch(e){ console.warn('wav load fail', fn, e); }
-    }
-    vb = vbObj;
-    document.getElementById('vbName').innerText = vb.name + ' (' + vb.entries.size + ' aliases)';
-    alert('デフォルト音源を読み込みました');
-  }catch(e){ console.error(e); alert('読み込み失敗'); }
-}
-document.getElementById('loadDefault').addEventListener('click', loadDefaultTeto);
+            source.connect(pitchShifter);
+            pitchShifter.connect(gainNode);
+            gainNode.connect(masterGain);
 
-// ---------- Render (OfflineAudioContext) ----------
-async function renderOffline(){
-  await ensureAudio();
-  const totalTicks = getLengthTicks();
-  const secPerTick = 60 / BPM / PPQ;
-  const duration = Math.ceil(totalTicks * secPerTick + 1);
-  const offline = new OfflineAudioContext(1, Math.ceil(duration * audioCtx.sampleRate), audioCtx.sampleRate);
-  const sorted = notes.slice().sort((a,b)=>a.tickOn-b.tickOn);
-  for(const n of sorted){
-    const entry = vb?.entries.get(n.lyric) || vb?.entries.get((n.lyric||'').trim());
-    if(!entry){
-      const osc = offline.createOscillator(); const g = offline.createGain();
-      const t0 = n.tickOn * secPerTick, t1 = t0 + Math.max(0.05, n.tickDur * secPerTick);
-      osc.type='sine'; osc.frequency.value = 440 * Math.pow(2,(n.pitch-69)/12);
-      osc.connect(g); g.connect(offline.destination);
-      g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(0.8, t0+0.01);
-      g.gain.setValueAtTime(0.8, t1-0.02); g.gain.linearRampToValueAtTime(0, t1);
-      osc.start(t0); osc.stop(t1);
-      continue;
-    }
-    const buf = vb.wavCache.get(entry.file.toLowerCase());
-    if(!buf) continue;
-    const pre = (entry.preutter||0)/1000; const offsetSec = Math.max(0, (entry.offset||0)/1000);
-    const tNote = n.tickOn * secPerTick; const startPlay = Math.max(0, tNote - pre);
-    const src = offline.createBufferSource(); src.buffer = buf;
-    const baseMidi = 60; const rate = Math.pow(2, (n.pitch - baseMidi)/12);
-    src.playbackRate.value = rate;
-    const g = offline.createGain();
-    const plannedStop = startPlay + Math.min(buf.duration - offsetSec, Math.max(0.05, n.tickDur * secPerTick + 0.05));
-    g.gain.setValueAtTime(0, startPlay); g.gain.linearRampToValueAtTime(1, startPlay+0.01);
-    g.gain.setValueAtTime(1, plannedStop-0.02); g.gain.linearRampToValueAtTime(0, plannedStop);
-    src.connect(g).connect(offline.destination);
-    src.start(startPlay, offsetSec);
-    src.stop(plannedStop);
-  }
-  return offline.startRendering();
-}
+            const noteDuration = note.duration * T_PER_BEAT;
+            const now = audioContext.currentTime;
 
-document.getElementById('renderBtn').addEventListener('click', async ()=>{
-  try{ const buf = await renderOffline(); alert('レンダリング完了: ' + Math.round(buf.duration*1000) + ' ms'); } catch(e){ console.error(e); alert('レンダリング失敗'); }
-});
-document.getElementById('exportBtn').addEventListener('click', async ()=>{
-  try{ const rendered = await renderOffline(); const wav = audioBufferToWav(rendered); const blob = new Blob([wav], {type:'audio/wav'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'render.wav'; a.click(); } catch(e){ console.error(e); alert('書き出し失敗'); }
-});
+            // エンベロープ
+            const attackEnd = now + time + note.envelope.attack * noteDuration;
+            const releaseStart = now + time + noteDuration - note.envelope.release * noteDuration;
+            
+            gainNode.gain.setValueAtTime(0, now + time);
+            gainNode.gain.linearRampToValueAtTime(1, attackEnd);
+            gainNode.gain.setValueAtTime(note.envelope.sustain, attackEnd);
+            gainNode.gain.linearRampToValueAtTime(0, releaseStart + note.envelope.release * noteDuration);
 
-function audioBufferToWav(buffer){
-  const numOfChan = buffer.numberOfChannels; const length = buffer.length; const sampleRate = buffer.sampleRate;
-  const bytes = 44 + length * numOfChan * 2; const ab = new ArrayBuffer(bytes); const view = new DataView(ab);
-  let off = 0;
-  function writeStr(s){ for(let i=0;i<s.length;i++) view.setUint8(off++, s.charCodeAt(i)); }
-  writeStr('RIFF'); view.setUint32(off, 36 + length * numOfChan * 2, true); off+=4; writeStr('WAVE'); writeStr('fmt '); view.setUint32(off,16,true); off+=4; view.setUint16(off,1,true); off+=2;
-  view.setUint16(off,numOfChan,true); off+=2; view.setUint32(off,sampleRate,true); off+=4; view.setUint32(off,sampleRate*numOfChan*2,true); off+=4; view.setUint16(off,numOfChan*2,true); off+=2; view.setUint16(off,16,true); off+=2;
-  writeStr('data'); view.setUint32(off, length * numOfChan * 2, true); off+=4;
-  for(let i=0;i<length;i++){
-    for(let ch=0; ch<numOfChan; ch++){
-      let v = buffer.getChannelData(ch)[i]; v = Math.max(-1, Math.min(1, v));
-      view.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7FFF, true); off += 2;
-    }
-  }
-  return ab;
-}
+            // ピッチカーブ
+            note.pitchBend.forEach(point => {
+                const bendTime = now + time + point.time * noteDuration;
+                const bendValue = Math.pow(2, point.value / 1200);
+                source.playbackRate.linearRampToValueAtTime(Math.pow(2, (note.pitch - 60) / 12) * bendValue, bendTime);
+            });
 
-// ---------- Save / Load / UST ----------
-document.getElementById('openBtn').addEventListener('click', ()=>document.getElementById('fileOpen').click());
-document.getElementById('fileOpen').addEventListener('change', async (e)=>{
-  const f = e.target.files[0]; if(!f) return;
-  const txt = await f.text();
-  try{
-    const pj = JSON.parse(txt);
-    if(pj.notes){ notes = pj.notes; PPQ = pj.ppq || PPQ; BPM = pj.bpm || BPM; updateProps(); resizeCanvas(); draw(); return; }
-  }catch(_){}
-  // very basic UST parsing (simple)
-  const lines = txt.split(/\r?\n/); notes = []; let tick=0;
-  for(const ln of lines){
-    const m = /^NoteNum=(\d+)/.exec(ln); const ml = /^Length=(\d+)/.exec(ln); const my = /^Lyric=(.*)/.exec(ln);
-    if(m && ml && my){ const pitch = parseInt(m[1],10); const len = parseInt(ml[1],10); const lyric = my[1].trim(); notes.push({ id: nextId++, tickOn: tick, tickDur: len, pitch, lyric, vel:100, PBS:0, PBW:'', PBY:'', pitchPoints:[] }); tick += len; }
-  }
-  resizeCanvas(); draw();
-});
+            // ビブラート
+            if (note.vibrato.depth > 0 && note.vibrato.rate > 0) {
+                const lfo = audioContext.createOscillator();
+                const lfoGain = audioContext.createGain();
 
-document.getElementById('saveBtn').addEventListener('click', ()=>{
-  const pj = { version:1, ppq:PPQ, bpm:BPM, notes };
-  const blob = new Blob([JSON.stringify(pj,null,2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'project.json'; a.click();
-});
+                lfo.type = 'sine';
+                lfo.frequency.setValueAtTime(note.vibrato.rate, now + time);
+                lfoGain.gain.setValueAtTime(note.vibrato.depth, now + time);
 
-// ---------- Undo / Redo ----------
-function pushUndo(){ undoStack.push(JSON.stringify(notes)); if(undoStack.length>200) undoStack.shift(); redoStack.length = 0; }
-document.getElementById('undoBtn').addEventListener('click', ()=>{ if(undoStack.length===0) return; redoStack.push(JSON.stringify(notes)); notes = JSON.parse(undoStack.pop()); selection = null; draw(); updateProps(); });
-document.getElementById('redoBtn').addEventListener('click', ()=>{ if(redoStack.length===0) return; undoStack.push(JSON.stringify(notes)); notes = JSON.parse(redoStack.pop()); selection = null; draw(); updateProps(); });
+                lfo.connect(lfoGain);
+                lfoGain.connect(source.playbackRate);
 
-// ---------- Utility ----------
-function updateStatus(){ document.getElementById('tick').innerText = selection? (notes.find(n=>n.id===selection)?.tickOn || 0) : 0; document.getElementById('len').innerText = selection? (notes.find(n=>n.id===selection)?.tickDur || 0) : 0; }
-function clamp(a,b,v){ return Math.max(a, Math.min(b, v)); }
+                lfo.start(now + time);
+                lfo.stop(now + time + noteDuration);
+            }
+            
+            source.start(now + time);
+            source.stop(now + time + noteDuration);
+        }
 
-// ---------- init ----------
-renderKeys(); resizeCanvas(); draw(); updateProps();
+        function scheduleNotes() {
+            const now = audioContext.currentTime;
+            notes.forEach(note => {
+                const noteStartTime = now + note.time * T_PER_BEAT;
+                playNote(note, noteStartTime);
+            });
+        }
 
-// ---------- iOS/resume on play ----------
-document.getElementById('playBtn').addEventListener('click', async ()=>{
-  const ac = await ensureAudio();
-  if(ac.state === 'suspended'){ try{ await ac.resume(); }catch(_){ } }
-  // render and play rendered buffer
-  try{
-    const rendered = await renderOffline();
-    const src = ac.createBufferSource();
-    src.buffer = rendered; src.connect(ac.destination); src.start();
-    src.onended = ()=>console.log('playback ended');
-  }catch(e){ console.error(e); alert('再生エラー'); }
-});
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            isPlaying = true;
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            scheduleNotes();
+            console.log('再生開始');
+        });
 
-// loadVB: attempt to read directory input (limited by browser)
-document.getElementById('loadVB').addEventListener('click', ()=>document.getElementById('vbPicker').click());
-document.getElementById('vbPicker').addEventListener('change', async (e)=>{
-  const files = Array.from(e.target.files || []);
-  const otoFile = files.find(f=>/oto\.ini$/i.test(f.name));
-  if(!otoFile){ alert('oto.ini が見つかりません'); return; }
-  const basePath = otoFile.webkitRelativePath ? otoFile.webkitRelativePath.replace(/[^/]+$/,'') : '';
-  const otoText = await otoFile.text();
-  const entries = await parseOto(otoText);
-  const vbObj = { name: basePath || 'local', entries, wavCache: new Map() };
-  await ensureAudio();
-  for(const f of files){
-    if(/\.(wav|mp3|ogg)$/i.test(f.name)){
-      try{ const ab = await f.arrayBuffer(); const buf = await decodeAudioDataSafe(audioCtx, ab); vbObj.wavCache.set(f.name.toLowerCase(), buf); }catch(e){ console.warn('decode fail', f.name, e); }
-    }
-  }
-  vb = vbObj; document.getElementById('vbName').innerText = vb.name + ' ('+vb.entries.size+' aliases)';
-  alert('Voicebank 読み込み完了');
-});
+        stopBtn.addEventListener('click', () => {
+            if (!isPlaying) return;
+            isPlaying = false;
+            masterGain.disconnect();
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+            console.log('再生停止');
+        });
 
-</script>
+        // 初期化
+        loadAudio().then(() => {
+            drawPianoRoll();
+            window.addEventListener('resize', drawPianoRoll);
+        });
+    </script>
 </body>
 </html>
