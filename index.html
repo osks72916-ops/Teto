@@ -22,25 +22,33 @@
             height: 400px;
             border: 1px solid #ccc;
             background-color: #fff;
-            overflow-x: scroll;
+            overflow: auto;
             cursor: crosshair;
         }
 
-        #piano-roll {
-            background-color: #fff;
+        .piano-grid-line {
+            position: absolute;
+            background-color: #e0e0e0;
+        }
+
+        .piano-grid-line.bar {
+            background-color: #a0a0a0;
         }
 
         .note {
-            background-color: #4CAF50;
-            border: 1px solid #388E3C;
             position: absolute;
             box-sizing: border-box;
+            background-color: #4CAF50;
+            border: 1px solid #388E3C;
             opacity: 0.8;
             cursor: pointer;
+            z-index: 10;
         }
 
-        .selected {
+        .note.selected {
             background-color: #FFC107;
+            border-color: #FF8F00;
+            box-shadow: 0 0 5px rgba(255, 143, 0, 0.5);
         }
 
         .note-lyrics {
@@ -52,6 +60,18 @@
             left: 0;
             white-space: nowrap;
         }
+        
+        .handle {
+            position: absolute;
+            width: 8px;
+            height: 100%;
+            cursor: ew-resize;
+            background-color: #ffffff33;
+            z-index: 20;
+        }
+
+        .handle.left { left: -4px; }
+        .handle.right { right: -4px; }
 
         #controls {
             margin-top: 20px;
@@ -89,12 +109,26 @@
             margin: 0 0 10px 0;
         }
 
-        #pitch-editor, #envelope-editor {
+        .editor-canvas {
             width: 100%;
             height: 150px;
             border: 1px solid #ccc;
             cursor: crosshair;
             background-color: #fafafa;
+        }
+
+        .vibrato-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .vibrato-controls label {
+            width: 60px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
         }
     </style>
 </head>
@@ -105,9 +139,7 @@
     </header>
 
     <main>
-        <div id="piano-roll-container">
-            <div id="lyrics-input-area"></div>
-        </div>
+        <div id="piano-roll-container"></div>
         
         <div id="controls">
             <button id="play-btn">再生</button>
@@ -118,24 +150,26 @@
             <h2>ノート編集</h2>
             <div class="editor-section">
                 <h3>ピッチカーブ</h3>
-                <canvas id="pitch-editor"></canvas>
+                <canvas id="pitch-editor" class="editor-canvas"></canvas>
             </div>
             <div class="editor-section">
                 <h3>エンベロープ</h3>
-                <canvas id="envelope-editor"></canvas>
+                <canvas id="envelope-editor" class="editor-canvas"></canvas>
             </div>
             <div class="editor-section">
                 <h3>ビブラート</h3>
-                <label for="vibrato-depth">深さ:</label>
-                <input type="range" id="vibrato-depth" min="0" max="100" value="0">
-                <label for="vibrato-rate">速さ:</label>
-                <input type="range" id="vibrato-rate" min="0" max="10" step="0.1" value="0">
+                <div class="vibrato-controls">
+                    <label for="vibrato-depth">深さ:</label>
+                    <input type="range" id="vibrato-depth" min="0" max="50" value="0">
+                    <label for="vibrato-rate">速さ:</label>
+                    <input type="range" id="vibrato-rate" min="0" max="10" step="0.1" value="0">
+                </div>
             </div>
         </div>
     </main>
     
     <script>
-        // ====== 設定と初期化 ======
+        // 設定
         const NOTE_WIDTH = 50;
         const NOTE_HEIGHT = 20;
         const PITCH_RANGE = 24;
@@ -143,26 +177,35 @@
         const TEMPO = 120;
         const T_PER_BEAT = 60 / TEMPO;
 
+        // グローバル変数
         let audioContext;
         let masterGain;
         const audioBuffers = {};
         const notes = [];
         const phonemes = ['a', 'i', 'u', 'e', 'o'];
-        const noteElements = new Map();
-
+        
         let isPlaying = false;
         let selectedNote = null;
+        let isDragging = false;
+        let dragType = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let originalNoteData = {};
 
-        // UI要素の取得
+        // UI要素
         const pianoRollContainer = document.getElementById('piano-roll-container');
-        const lyricsInputArea = document.getElementById('lyrics-input-area');
         const playBtn = document.getElementById('play-btn');
         const stopBtn = document.getElementById('stop-btn');
         const editorPanel = document.getElementById('editor-panel');
+        const pitchEditorCanvas = document.getElementById('pitch-editor');
+        const envelopeEditorCanvas = document.getElementById('envelope-editor');
         const vibratoDepthInput = document.getElementById('vibrato-depth');
         const vibratoRateInput = document.getElementById('vibrato-rate');
+        
+        const pitchEditorCtx = pitchEditorCanvas.getContext('2d');
+        const envelopeEditorCtx = envelopeEditorCanvas.getContext('2d');
 
-        // ====== 音源のロード ======
+        // ====== 初期化 ======
         async function loadAudio() {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             masterGain = audioContext.createGain();
@@ -180,19 +223,39 @@
             }
         }
 
-        // ====== UIの描画 ======
-        function drawPianoRoll() {
-            // 背景のグリッドを動的に生成
-            const numBeats = Math.max(16, Math.ceil(pianoRollContainer.scrollWidth / NOTE_WIDTH / 4) * 4);
-            pianoRollContainer.style.width = `${numBeats * NOTE_WIDTH}px`;
-            
-            // ノートのHTML要素を更新
-            noteElements.forEach(el => el.remove());
-            noteElements.clear();
+        function drawGrid() {
+            pianoRollContainer.innerHTML = '';
+            const numBeats = Math.max(32, Math.ceil(pianoRollContainer.scrollWidth / NOTE_WIDTH / 4) * 4);
+            const containerHeight = PITCH_RANGE * NOTE_HEIGHT;
+            pianoRollContainer.style.height = `${containerHeight}px`;
 
+            for (let i = 0; i < numBeats * 4; i++) {
+                const line = document.createElement('div');
+                line.className = 'piano-grid-line';
+                line.style.width = '1px';
+                line.style.height = '100%';
+                line.style.left = `${i * NOTE_WIDTH / 4}px`;
+                if (i % 4 === 0) {
+                    line.classList.add('bar');
+                }
+                pianoRollContainer.appendChild(line);
+            }
+            for (let i = 0; i < PITCH_RANGE; i++) {
+                const line = document.createElement('div');
+                line.className = 'piano-grid-line';
+                line.style.height = '1px';
+                line.style.width = '100%';
+                line.style.top = `${i * NOTE_HEIGHT}px`;
+                pianoRollContainer.appendChild(line);
+            }
+        }
+
+        function drawNotes() {
+            document.querySelectorAll('.note').forEach(el => el.remove());
             notes.forEach(note => {
                 const noteEl = document.createElement('div');
-                noteEl.className = 'note';
+                noteEl.className = `note ${note === selectedNote ? 'selected' : ''}`;
+                noteEl.dataset.noteId = note.id;
                 noteEl.style.left = `${note.time * NOTE_WIDTH}px`;
                 noteEl.style.top = `${(PITCH_RANGE - 1 - (note.pitch - PITCH_OFFSET)) * NOTE_HEIGHT}px`;
                 noteEl.style.width = `${note.duration * NOTE_WIDTH}px`;
@@ -202,47 +265,98 @@
                 lyricsEl.className = 'note-lyrics';
                 lyricsEl.textContent = note.phoneme;
                 noteEl.appendChild(lyricsEl);
+                
+                // サイズ変更ハンドル
+                const rightHandle = document.createElement('div');
+                rightHandle.className = 'handle right';
+                noteEl.appendChild(rightHandle);
 
                 pianoRollContainer.appendChild(noteEl);
-                noteElements.set(note, noteEl);
-            });
-            updateSelection();
-        }
-
-        function updateSelection() {
-            noteElements.forEach((el, note) => {
-                if (note === selectedNote) {
-                    el.classList.add('selected');
-                } else {
-                    el.classList.remove('selected');
-                }
             });
         }
 
-        // ====== ノートの追加と選択 ======
-        pianoRollContainer.addEventListener('click', (e) => {
+        function refreshUI() {
+            drawGrid();
+            drawNotes();
+            if (selectedNote) {
+                showEditorPanel();
+            } else {
+                hideEditorPanel();
+            }
+        }
+        
+        // ====== ノートの操作 ======
+        pianoRollContainer.addEventListener('mousedown', (e) => {
             if (isPlaying) return;
+            const noteEl = e.target.closest('.note');
 
-            const rect = pianoRollContainer.getBoundingClientRect();
-            const x = e.clientX - rect.left + pianoRollContainer.scrollLeft;
-            const y = e.clientY - rect.top;
+            if (noteEl) {
+                const noteId = noteEl.dataset.noteId;
+                selectedNote = notes.find(n => n.id === noteId);
+                updateSelection();
+                showEditorPanel();
+                
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                originalNoteData = {
+                    time: selectedNote.time,
+                    pitch: selectedNote.pitch,
+                    duration: selectedNote.duration
+                };
 
-            const clickedNoteEl = e.target.closest('.note');
-            if (clickedNoteEl) {
-                const note = Array.from(noteElements.keys()).find(key => noteElements.get(key) === clickedNoteEl);
-                if (note) {
-                    selectedNote = note;
-                    showEditorPanel();
-                    updateSelection();
+                if (e.target.classList.contains('handle')) {
+                    dragType = 'resize';
+                } else {
+                    dragType = 'move';
                 }
             } else {
+                selectedNote = null;
+                updateSelection();
+                hideEditorPanel();
+                
+                isDragging = true;
+                dragType = 'create';
+                dragStartX = e.clientX + pianoRollContainer.scrollLeft;
+                dragStartY = e.clientY + pianoRollContainer.scrollTop;
+            }
+        });
+
+        pianoRollContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+
+            if (dragType === 'move' && selectedNote) {
+                const dx = currentX - dragStartX;
+                const dy = currentY - dragStartY;
+                const newTime = Math.round(originalNoteData.time + dx / NOTE_WIDTH);
+                const newPitch = Math.round(originalNoteData.pitch - dy / NOTE_HEIGHT);
+                
+                selectedNote.time = Math.max(0, newTime);
+                selectedNote.pitch = Math.min(PITCH_RANGE - 1 + PITCH_OFFSET, Math.max(PITCH_OFFSET, newPitch));
+                refreshUI();
+            } else if (dragType === 'resize' && selectedNote) {
+                const dx = currentX - dragStartX;
+                const newDuration = Math.round(originalNoteData.duration + dx / NOTE_WIDTH);
+                selectedNote.duration = Math.max(0.5, newDuration);
+                refreshUI();
+            }
+        });
+
+        pianoRollContainer.addEventListener('mouseup', () => {
+            if (isDragging && dragType === 'create') {
+                const x = dragStartX;
+                const y = dragStartY;
                 const time = Math.floor(x / NOTE_WIDTH);
                 const pitchIndex = Math.floor(y / NOTE_HEIGHT);
                 const pitch = PITCH_RANGE - 1 - pitchIndex + PITCH_OFFSET;
 
                 const phoneme = prompt('歌詞を入力してください (例: a, i, u, e, o)', 'a');
                 if (phoneme && phonemes.includes(phoneme)) {
-                    notes.push({
+                    const newNote = {
+                        id: Date.now().toString(),
                         time: time,
                         pitch: pitch,
                         duration: 1,
@@ -250,18 +364,82 @@
                         envelope: { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.2 },
                         vibrato: { depth: 0, rate: 0 },
                         pitchBend: [{ time: 0, value: 0 }, { time: 1, value: 0 }]
-                    });
+                    };
+                    notes.push(newNote);
                     notes.sort((a, b) => a.time - b.time);
-                    drawPianoRoll();
+                    selectedNote = newNote;
+                    refreshUI();
                 }
             }
+            isDragging = false;
         });
+
+        function updateSelection() {
+            document.querySelectorAll('.note').forEach(el => el.classList.remove('selected'));
+            if (selectedNote) {
+                const noteEl = document.querySelector(`[data-note-id="${selectedNote.id}"]`);
+                if (noteEl) noteEl.classList.add('selected');
+            }
+        }
 
         // ====== エディタパネル ======
         function showEditorPanel() {
-            if (!selectedNote) return;
             editorPanel.classList.remove('hidden');
+            drawPitchEditor();
+            drawEnvelopeEditor();
             updateVibratoInputs();
+        }
+
+        function hideEditorPanel() {
+            editorPanel.classList.add('hidden');
+        }
+
+        function drawPitchEditor() {
+            if (!selectedNote) return;
+            const ctx = pitchEditorCtx;
+            const canvas = pitchEditorCanvas;
+            const { duration, pitchBend } = selectedNote;
+            const noteTime = duration;
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.beginPath();
+            ctx.moveTo(pitchBend[0].time * canvas.width, (1 - (pitchBend[0].value + 100) / 200) * canvas.height);
+            pitchBend.forEach(point => {
+                const x = point.time * canvas.width;
+                const y = (1 - (point.value + 100) / 200) * canvas.height;
+                ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = '#007BFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawEnvelopeEditor() {
+            if (!selectedNote) return;
+            const ctx = envelopeEditorCtx;
+            const canvas = envelopeEditorCanvas;
+            const { envelope } = selectedNote;
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const attackX = envelope.attack * canvas.width;
+            const sustainX = canvas.width;
+            const releaseX = (1 - envelope.release) * canvas.width;
+            const sustainY = (1 - envelope.sustain) * canvas.height;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.lineTo(attackX, 0); // アタック
+            ctx.lineTo(releaseX, 0); // サスティン
+            ctx.lineTo(canvas.width, canvas.height); // リリース
+            ctx.strokeStyle = '#66BB6A';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
 
         function updateVibratoInputs() {
@@ -280,7 +458,7 @@
                 selectedNote.vibrato.rate = parseFloat(vibratoRateInput.value);
             }
         });
-
+        
         // ====== 再生機能 ======
         function playNote(note, time) {
             if (!audioBuffers[note.phoneme]) return;
@@ -300,12 +478,12 @@
 
             // エンベロープ
             const attackEnd = now + time + note.envelope.attack * noteDuration;
-            const releaseStart = now + time + noteDuration - note.envelope.release * noteDuration;
+            const releaseStart = now + time + noteDuration;
             
             gainNode.gain.setValueAtTime(0, now + time);
             gainNode.gain.linearRampToValueAtTime(1, attackEnd);
-            gainNode.gain.setValueAtTime(note.envelope.sustain, attackEnd);
-            gainNode.gain.linearRampToValueAtTime(0, releaseStart + note.envelope.release * noteDuration);
+            gainNode.gain.linearRampToValueAtTime(note.envelope.sustain, attackEnd);
+            gainNode.gain.linearRampToValueAtTime(0, releaseStart);
 
             // ピッチカーブ
             note.pitchBend.forEach(point => {
@@ -361,10 +539,10 @@
             console.log('再生停止');
         });
 
-        // 初期化
+        // ページ読み込み時の処理
         loadAudio().then(() => {
-            drawPianoRoll();
-            window.addEventListener('resize', drawPianoRoll);
+            refreshUI();
+            window.addEventListener('resize', refreshUI);
         });
     </script>
 </body>
